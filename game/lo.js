@@ -15,6 +15,7 @@ const banKinh = (co) => .22 + (co - 1) * .14;   // dùng chung cho hố và vòn
 function batDau(man) {
   const vat = [];
   ['1', '2', '3'].forEach((c, i) => man.lay(c).forEach(([x, y]) => vat.push({ x, y, co: i + 1 })));
+  for (const [x, y] of man.lay('c')) vat.push({ x, y, co: 1, chum: true });
   const [x, y] = man.lay('@')[0];
   return { x, y, vat, nuot: 0, luc: 0, vuaNuot: null };
 }
@@ -42,9 +43,13 @@ function buoc(man, tt, huong) {
   if (v && v.co > coHo(tt)) return { tt, bao: 'Hố còn bé hơn thứ đó.', loai: 'ket' };
 
   const vat = v ? tt.vat.filter((k) => k !== v) : tt.vat;
+  // Chum nước làm hố NHỎ LẠI một cỡ — đối trọng với luật hố chỉ to lên.
+  // Nhờ nó mà thứ tự ăn thành bài toán thật: uống chum sớm là phí, để đúng
+  // lúc thì lách lại được vào hành lang còn đồ.
+  const them = v ? (v.chum ? -2 : 1) : 0;
   const moi = {
     x: nx, y: ny, vat,
-    nuot: tt.nuot + (v ? 1 : 0),
+    nuot: Math.max(0, tt.nuot + them),
     luc: v ? performance.now() : tt.luc,
     vuaNuot: v ? { ...v } : null,
   };
@@ -118,7 +123,7 @@ function ve(ctx, man, tt, g, phu) {
     const [px, py] = tamO(g, v.x, v.y);
     const vao = muot(kep((phu.vaoMan - i * .055) / .55, 0, 1));
     if (vao <= 0) return;
-    veVat(ctx, px, py - (1 - vao) * g.o * 1.5, g.o, v.co, vao);
+    veVat(ctx, px, py - (1 - vao) * g.o * 1.5, g.o, v.co, vao, v.chum);
   });
 
   // vật vừa bị nuốt: chìm xuống, xoay nhẹ, kèm bụi cát
@@ -135,7 +140,7 @@ function ve(ctx, man, tt, g, phu) {
       ctx.translate(px, py + g.o * .3 * muot(t));
       ctx.rotate(muot(t) * .5);
       ctx.scale(1 - muot(t) * .6, 1 - muot(t) * .6);
-      veVat(ctx, 0, 0, g.o, tt.vuaNuot.co, 1 - muot(t) * .8);
+      veVat(ctx, 0, 0, g.o, tt.vuaNuot.co, 1 - muot(t) * .8, tt.vuaNuot.chum);
       ctx.restore();
     }
   }
@@ -184,7 +189,13 @@ function ve(ctx, man, tt, g, phu) {
   }
 }
 
-const TRANH = { 3: 'assets/sprite/xuong-rong.webp' };
+// Mỗi tranh một tỉ lệ riêng: hòn đá phải nhỏ hơn bụi xương rồng dù cùng ô.
+const TRANH = {
+  1: ['assets/sprite/soi.webp', 1.5],
+  2: ['assets/sprite/thung.webp', 1.9],
+  3: ['assets/sprite/xuong-rong.webp', 2.5],
+  chum: ['assets/sprite/chum.webp', 1.8],
+};
 
 const toiHon = (hex, k) => {
   const n = parseInt(hex.slice(1), 16);
@@ -192,9 +203,23 @@ const toiHon = (hex, k) => {
   return `rgb(${r},${g},${b})`;
 };
 
-function veVat(ctx, px, py, o, co, mo) {
+function veVat(ctx, px, py, o, co, mo, chum) {
   ctx.globalAlpha = mo;
-  const s = o * (.2 + co * .1);
+  const s = o * (chum ? .3 : .2 + co * .1);
+  const khoaTranh = chum ? 'chum' : co;
+  const t = TRANH[khoaTranh] && anh(TRANH[khoaTranh][0]);
+  if (t) {
+    const k = o * TRANH[khoaTranh][1] * .42;
+    bongMem(ctx, px, py + k * .4, k * .42, .4);
+    ctx.drawImage(t, px - k / 2, py - k * .58, k, k);
+    ctx.setLineDash([o * .07, o * .07]);
+    ctx.strokeStyle = `rgba(58,36,16,${.4 * mo})`;
+    ctx.lineWidth = Math.max(1.2, o * .035);
+    ctx.beginPath(); ctx.arc(px, py, o * banKinh(co), 0, 7); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.globalAlpha = 1;
+    return;
+  }
   const day = s * (.22 + co * .1);
   bongMem(ctx, px - SANG.x * day, py + s * .66 + day * .4, s * 1.35, .42);
 
@@ -219,10 +244,6 @@ function veVat(ctx, px, py, o, co, mo) {
     khoi(ctx, px - s * .82, py - s * .8, s * 1.64, s * 1.5, day, mau, canh, s * .26);
     ctx.fillStyle = 'rgba(70,40,18,.42)';
     ctx.fillRect(px - s * .82, py - s * .2, s * 1.64, s * .24);
-  } else if (anh(TRANH[co])) {
-    // tranh vẽ thật, nếu đã tải xong
-    const t = anh(TRANH[co]), k = s * 2.5;
-    ctx.drawImage(t, px - k / 2, py - k * .56, k, k);
   } else {
     // bản dự phòng vẽ bằng code — dùng khi ảnh chưa tải xong hoặc thiếu tệp
     const than = (x, y, w, h, r) => {
@@ -242,7 +263,7 @@ function veVat(ctx, px, py, o, co, mo) {
 
 export default {
   ten: 'Hố Sụt',
-  goi: 'Bạn là cái hố. Chỉ nuốt được thứ không to hơn mình — nuốt đủ thì hố rộng ra. Dọn sạch bãi.',
+  goi: 'Bạn là cái hố. Chỉ nuốt được thứ không to hơn mình, nuốt đủ thì hố rộng ra — mà hố rộng thì hết lách qua chỗ hẹp. Nuốt chum nước để nhỏ lại một cỡ. Dọn sạch bãi.',
   tyLe: .62,
   mau: { chinh: '#d9bb8a', nen: TROI, phu: VAT[2] },
   batDau, buoc, ve,

@@ -1,7 +1,10 @@
 // THÙNG HÀNG — mũi tên trái/phải là nghiêng cả cái thùng 90°.
 // Người và kiện hàng rơi theo chiều "dưới" mới. Đưa người xuống nắp hầm.
 // Thế giới: khung thùng gỗ đóng đai sắt, có quai — để thấy rõ là CÁI THÙNG quay.
-import { laTuong, tamO, oTron, kep, muot, lerp, nhieu, bongMem, toiGoc, khoi, nhanVat, SANG } from '../nen.js';
+import { laTuong, tamO, oTron, kep, muot, lerp, nhieu, bongMem, toiGoc, khoi, nhanVat, SANG, anh } from '../nen.js';
+
+const TRANH_KIEN = 'assets/sprite/kien-hang.webp';
+const TRANH_NAP = 'assets/sprite/nap-ham.webp';
 import { MAN } from '../man.js';
 
 const GO = '#8a6240', GO_TOI = '#5c3f28', DAI = '#b9873f';
@@ -173,6 +176,10 @@ function ve(ctx, man, tt, g, phu) {
   }
 
   const [npx, npy] = tamO(g, tt.nap[0], tt.nap[1]);
+  if (anh(TRANH_NAP)) {
+    const k = g.o * .82;
+    ctx.drawImage(anh(TRANH_NAP), npx - k / 2, npy - k / 2, k, k);
+  }
   ctx.strokeStyle = NAP;
   ctx.lineWidth = Math.max(2, g.o * .08);
   oTron(ctx, npx - g.o * .32, npy - g.o * .32, g.o * .64, g.o * .64, g.o * .1);
@@ -212,6 +219,10 @@ function ve(ctx, man, tt, g, phu) {
       ctx.moveTo(px - g.o * .16, py - g.o * .28); ctx.lineTo(px - g.o * .02, py - g.o * .04);
       ctx.lineTo(px - g.o * .13, py + g.o * .1); ctx.lineTo(px + g.o * .04, py + g.o * .28);
       ctx.stroke();
+    } else if (v.loai === 'kien' && anh(TRANH_KIEN)) {
+      bongMem(ctx, px, py + g.o * .36, g.o * .38, .46);
+      const k = g.o * .84;
+      ctx.drawImage(anh(TRANH_KIEN), px - k / 2, py - k / 2 + g.o * ep * .3, k, k * (1 - ep * .3));
     } else if (v.loai === 'kien') {
       const day = g.o * .13;
       bongMem(ctx, px - SANG.x * day, py + g.o * .34 + day * .5, g.o * .4, .46);
