@@ -5,6 +5,7 @@ import { laTuong, tamO, oTron, kep, muot, lerp, nhieu, bongMem, toiGoc, khoi, nh
 
 const TRANH_KIEN = 'assets/sprite/kien-hang.webp';
 const TRANH_NAP = 'assets/sprite/nap-ham.webp';
+const TRANH_HOM = 'assets/sprite/hom.webp';
 import { MAN } from '../man.js';
 
 const GO = '#8a6240', GO_TOI = '#5c3f28', DAI = '#b9873f';
@@ -21,10 +22,11 @@ function batDau(man) {
   let id = 0;
   for (const [x, y] of man.lay('o')) vat.push({ id: id++, loai: 'kien', x, y });
   for (const [x, y] of man.lay('v')) vat.push({ id: id++, loai: 'devo', x, y });
+  for (const [x, y] of man.lay('h')) vat.push({ id: id++, loai: 'hom', x, y });
   const [nx, ny] = man.lay('@')[0];
   vat.push({ id: id++, loai: 'nguoi', x: nx, y: ny });
   const tt = { n, tuong: new Set(man.tuong), vat, nap: man.lay('X')[0].slice(), luc: 0, quay: 0, huong: 0 };
-  roi(tt);
+  onDinh(tt);
   return tt;
 }
 
@@ -100,15 +102,28 @@ function nghiengThung(tt, chieu) {
 // Rơi, vỡ, rơi tiếp, rồi xét thắng. Kiện dễ vỡ rơi quá 3 ô là mất luôn — đây
 // là thứ KHÔNG LẤY LẠI ĐƯỢC mà game vốn thiếu (nghiêng trái rồi nghiêng phải
 // vẫn về chỗ cũ, nên trước đó bẫy = 0 ở cả 10 màn).
-function xongNuoc(moi) {
-  const truocRoi = new Map(moi.vat.map((v) => [v.id, v.y]));
-  roi(moi);
-  const vo = moi.vat.filter((v) => v.loai === 'devo' && v.y - truocRoi.get(v.id) >= 3);
-  if (vo.length) {
-    moi.vo = vo.map((v) => ({ x: v.x, y: v.y }));
+// Rơi, vỡ, rơi tiếp, lặp tới khi đứng yên. Hai cách vỡ:
+//   rơi quá 3 ô              — kiện dễ vỡ không chịu nổi cú tiếp đất
+//   bị hòm nặng đè lên       — bất kể cao thấp, hòm là hòm
+// Phải lặp vì kiện vỡ thì thứ bên trên rơi tiếp, có thể đè vỡ kiện khác.
+function onDinh(moi) {
+  const voTatCa = [];
+  for (let vong = 0; vong < 8; vong++) {
+    const truoc = new Map(moi.vat.map((v) => [v.id, v.y]));
+    roi(moi);
+    const duoiHom = new Set(moi.vat.filter((v) => v.loai === 'hom').map((v) => `${v.x},${v.y + 1}`));
+    const vo = moi.vat.filter((v) => v.loai === 'devo'
+      && (v.y - truoc.get(v.id) >= 3 || duoiHom.has(`${v.x},${v.y}`)));
+    if (!vo.length) break;
+    voTatCa.push(...vo.map((v) => ({ x: v.x, y: v.y })));
     moi.vat = moi.vat.filter((v) => !vo.includes(v));
-    roi(moi);                              // thứ đang nằm trên kiện vừa vỡ thì rơi tiếp
   }
+  moi.vo = voTatCa.length ? voTatCa : null;
+  return moi;
+}
+
+function xongNuoc(moi) {
+  onDinh(moi);
   const ng = moi.vat.find((v) => v.loai === 'nguoi');
   return { tt: moi, thang: ng.x === moi.nap[0] && ng.y === moi.nap[1] };
 }
@@ -219,6 +234,15 @@ function ve(ctx, man, tt, g, phu) {
       ctx.moveTo(px - g.o * .16, py - g.o * .28); ctx.lineTo(px - g.o * .02, py - g.o * .04);
       ctx.lineTo(px - g.o * .13, py + g.o * .1); ctx.lineTo(px + g.o * .04, py + g.o * .28);
       ctx.stroke();
+    } else if (v.loai === 'hom') {
+      bongMem(ctx, px, py + g.o * .36, g.o * .44, .5);
+      const t = anh(TRANH_HOM);
+      if (t) {
+        const k = g.o * .92;
+        ctx.drawImage(t, px - k / 2, py - k * .48 + g.o * ep * .3, k, k * (1 - ep * .3));
+      } else {
+        khoi(ctx, px - g.o * .4, py - g.o * .3, g.o * .8, g.o * .6, g.o * .12, '#6b4a2a', '#43301c', g.o * .08);
+      }
     } else if (v.loai === 'kien' && anh(TRANH_KIEN)) {
       bongMem(ctx, px, py + g.o * .36, g.o * .38, .46);
       const k = g.o * .84;
@@ -261,7 +285,7 @@ function veVanGo(c, W, H) {
 
 export default {
   ten: 'Thùng Hàng',
-  goi: '← → đi bộ; chạm kiện hàng thì trèo lên. Đẩy vào thành thùng là cả thùng nghiêng, mọi thứ rơi theo chiều "dưới" mới. Kiện nhạt màu rơi quá 3 ô là vỡ. Đưa người xuống nắp hầm.',
+  goi: '← → đi bộ; chạm kiện hàng thì trèo lên. Đẩy vào thành thùng là cả thùng nghiêng, mọi thứ rơi theo chiều "dưới" mới. Kiện nhạt màu rơi quá 3 ô là vỡ, và hòm nặng đè lên là vỡ ngay. Đưa người xuống nắp hầm.',
   tyLe: .92,
   mau: { chinh: DAI, nen: NEN, phu: KIEN },
   batDau, buoc, ve,
