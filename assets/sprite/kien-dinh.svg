@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="192" height="192">
+  <!-- Kiện đóng đinh: bắt chặt vào sàn, thùng nghiêng cũng không rơi.
+       Cố ý sẫm và lạnh hơn kiện gỗ thường để nhìn phát biết là KHÔNG rơi. -->
+  <rect x="5" y="5" width="54" height="54" rx="5" fill="#53402a"/>
+  <g fill="#664e32">
+    <rect x="8" y="8" width="11.5" height="48" rx="2"/>
+    <rect x="21.5" y="8" width="11.5" height="48" rx="2"/>
+    <rect x="35" y="8" width="11.5" height="48" rx="2"/>
+    <rect x="48.5" y="8" width="7.5" height="48" rx="2"/>
+  </g>
+  <path d="M5 10a5 5 0 0 1 5-5h44v4.2H9.2V55H5z" fill="#fff" opacity=".15"/>
+  <path d="M59 54a5 5 0 0 1-5 5H10v-4.2h44.8V9H59z" fill="#000" opacity=".24"/>
+  <g fill="#39414d">
+    <path d="M5 10a5 5 0 0 1 5-5h13v6.5H11.5V23H5z"/>
+    <path d="M59 10a5 5 0 0 0-5-5H41v6.5h11.5V23H59z"/>
+    <path d="M5 54a5 5 0 0 0 5 5h13v-6.5H11.5V41H5z"/>
+    <path d="M59 54a5 5 0 0 1-5 5H41v-6.5h11.5V41H59z"/>
+  </g>
+  <g fill="#8d97a6">
+    <circle cx="11.5" cy="11.5" r="2.7"/><circle cx="52.5" cy="11.5" r="2.7"/>
+    <circle cx="11.5" cy="52.5" r="2.7"/><circle cx="52.5" cy="52.5" r="2.7"/>
+  </g>
+  <g fill="#ccd4de">
+    <circle cx="10.6" cy="10.6" r="1.05"/><circle cx="51.6" cy="10.6" r="1.05"/>
+    <circle cx="10.6" cy="51.6" r="1.05"/><circle cx="51.6" cy="51.6" r="1.05"/>
+  </g>
+</svg>
