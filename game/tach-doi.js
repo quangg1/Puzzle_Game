@@ -1,6 +1,20 @@
 // TIA SÉT — một phím điều khiển mọi tia. Chạm ngạnh chẻ là tách làm đôi.
 // Phủ hết các chấu thu thì xong. Thế giới: điện trắng xanh trên nền đêm.
-import { laTuong, tamO, oTron, kep, lerp, muot, nhieu, toiGoc } from '../nen.js';
+import { laTuong, tamO, oTron, kep, lerp, muot, nhieu, toiGoc, anh } from '../nen.js';
+
+// Gương bẻ tia 90 độ. Hai hướng đặt, vì một hướng thì nó là cái xoay chứ không
+// phải gương. 'G' là mặt chéo lên ( / ), 'B' là mặt chéo xuống ( \ ).
+// Gương KHÔNG cháy như ngạnh chẻ — nó là hình học, không phải tài nguyên.
+const GUONG = {
+  G: { phai: 'len', trai: 'xuong', len: 'phai', xuong: 'trai' },
+  B: { phai: 'xuong', trai: 'len', len: 'trai', xuong: 'phai' },
+};
+const TRANH_GUONG = 'assets/sprite/guong.svg';
+const doGuong = (man) => {
+  const m = new Map();
+  for (const c of ['G', 'B']) for (const [x, y] of man.lay(c)) m.set(`${x},${y}`, c);
+  return m;
+};
 import { MAN } from '../man.js';
 
 const NEN = '#05070c', O = '#0e1520', TUONG = '#1a2331';
@@ -19,33 +33,49 @@ function batDau(man) {
 }
 
 function buoc(man, tt, huong) {
-  const [dx, dy] = BUOC[huong];
-  let tia = new Set();
+  const g = doGuong(man);
+
+  // 1. mỗi tia đi một bước, gặp gương thì bẻ rồi đi tiếp — bẻ được nhiều lần
+  const sau = new Map();               // "x,y" -> hướng tia đang chạy
   for (const k of tt.tia) {
-    const [x, y] = k.split(',').map(Number);
-    tia.add(laTuong(man, x + dx, y + dy) ? k : `${x + dx},${y + dy}`);
+    let [x, y] = k.split(',').map(Number);
+    let h = huong;
+    const [dx, dy] = BUOC[h];
+    if (laTuong(man, x + dx, y + dy)) { sau.set(k, h); continue; }
+    x += dx; y += dy;
+    for (let n = 0; n < 8; n++) {
+      const loai = g.get(`${x},${y}`);
+      if (!loai) break;
+      h = GUONG[loai][h];
+      const [ax, ay] = BUOC[h];
+      if (laTuong(man, x + ax, y + ay)) break;   // bẻ xong đụng tường thì nằm lại gương
+      x += ax; y += ay;
+    }
+    sau.set(`${x},${y}`, h);           // hai tia về cùng ô thì nhập làm một
   }
 
+  // 2. chẻ ở ngạnh, theo hướng tia ĐANG chạy chứ không theo phím bấm
   const nganh = new Set(tt.nganh);
   const noAt = [];
-  for (const k of [...tia]) {
+  for (const [k, h] of [...sau]) {
     if (!nganh.has(k)) continue;
     const [x, y] = k.split(',').map(Number);
-    const ra = vuongGoc(huong)
+    const ra = vuongGoc(h)
       .map(([ax, ay]) => [x + ax, y + ay])
       .filter(([ax, ay]) => !laTuong(man, ax, ay));
     if (!ra.length) continue;          // bí cả hai bên thì không chẻ
-    tia.delete(k);
+    sau.delete(k);
     nganh.delete(k);                   // ngạnh cháy hết sau một lần
     noAt.push(k);
-    for (const [ax, ay] of ra) tia.add(`${ax},${ay}`);
+    for (const [ax, ay] of ra) sau.set(`${ax},${ay}`, h);
   }
 
-  if ([...tia].join('|') === [...tt.tia].join('|') && !noAt.length) return null;
+  const tia = [...sau.keys()];
+  if (tia.slice().sort().join('|') === [...tt.tia].slice().sort().join('|') && !noAt.length) return null;
 
   const chau = man.lay('X').map((p) => p.join(','));
-  const thang = tia.size === chau.length && chau.every((c) => tia.has(c));
-  return { tt: { tia: [...tia], nganh, luc: performance.now(), noAt }, thang };
+  const thang = tia.length === chau.length && chau.every((c) => sau.has(c));
+  return { tt: { tia, nganh, luc: performance.now(), noAt }, thang };
 }
 
 const toa = (k) => k.split(',').map(Number);
@@ -114,6 +144,29 @@ function ve(ctx, man, tt, g, phu) {
     ctx.lineTo(px + g.o * .24, py - g.o * .26);
     ctx.stroke();
   }
+
+  // gương
+  for (const [c, lat] of [['G', 1], ['B', -1]])
+    for (const [x, y] of man.lay(c)) {
+      const [px, py] = tamO(g, x, y);
+      const t = anh(TRANH_GUONG);
+      if (t) {
+        const k = g.o * .92;
+        ctx.save();
+        ctx.translate(px, py);
+        ctx.scale(lat, 1);
+        ctx.drawImage(t, -k / 2, -k / 2, k, k);
+        ctx.restore();
+      } else {
+        ctx.strokeStyle = '#cfe9f7';
+        ctx.lineWidth = Math.max(2, g.o * .12);
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(px - lat * g.o * .3, py + g.o * .3);
+        ctx.lineTo(px + lat * g.o * .3, py - g.o * .3);
+        ctx.stroke();
+      }
+    }
 
   // chấu thu
   const dangCo = new Set(tt.tia);
@@ -185,7 +238,7 @@ function ve(ctx, man, tt, g, phu) {
 
 export default {
   ten: 'Tia Sét',
-  goi: 'Một phím điều khiển mọi tia cùng lúc. Chạm ngạnh chữ Y là tách làm đôi. Phủ kín các chấu thu.',
+  goi: 'Một phím điều khiển mọi tia cùng lúc. Chạm ngạnh chữ Y là tách làm đôi, ngạnh cháy hết sau một lần. Gương bẻ tia 90 độ và dùng được mãi. Phủ kín các chấu thu.',
   tyLe: .66,
   mau: { chinh: DIEN, nen: NEN, phu: CHAU },
   batDau, buoc, ve,
