@@ -17,6 +17,7 @@ function batDau(man) {
   const vat = [];
   let id = 0;
   for (const [x, y] of man.lay('o')) vat.push({ id: id++, loai: 'kien', x, y });
+  for (const [x, y] of man.lay('v')) vat.push({ id: id++, loai: 'devo', x, y });
   const [nx, ny] = man.lay('@')[0];
   vat.push({ id: id++, loai: 'nguoi', x: nx, y: ny });
   const tt = { n, tuong: new Set(man.tuong), vat, nap: man.lay('X')[0].slice(), luc: 0, quay: 0, huong: 0 };
@@ -52,7 +53,18 @@ function buoc(man, tt, huong) {
     huong: (tt.huong + chieu + 4) % 4,   // quai xách nhớ thùng đã quay bao nhiêu
     truoc: tt.vat.map((v) => { const [x, y] = quayDiem([v.x, v.y], n, chieu); return { id: v.id, x, y }; }),
   };
+  // Kiện dễ vỡ rơi quá 3 ô là vỡ, mất luôn. Đây là thứ KHÔNG LẤY LẠI ĐƯỢC
+  // mà game này vốn thiếu: nghiêng trái rồi nghiêng phải vẫn về chỗ cũ, nên
+  // trước đó bẫy = 0 ở cả 10 màn. Người chơi hay phải trèo lên kiện hàng mới
+  // tới được nắp hầm, làm vỡ nhầm một kiện là hỏng màn.
+  const truocRoi = new Map(moi.vat.map((v) => [v.id, v.y]));
   roi(moi);
+  const vo = moi.vat.filter((v) => v.loai === 'devo' && v.y - truocRoi.get(v.id) >= 3);
+  if (vo.length) {
+    moi.vo = vo.map((v) => ({ x: v.x, y: v.y }));
+    moi.vat = moi.vat.filter((v) => !vo.includes(v));
+    roi(moi);                              // thứ đang nằm trên kiện vừa vỡ thì rơi tiếp
+  }
   const ng = moi.vat.find((v) => v.loai === 'nguoi');
   return { tt: moi, thang: ng.x === moi.nap[0] && ng.y === moi.nap[1] };
 }
@@ -148,7 +160,18 @@ function ve(ctx, man, tt, g, phu) {
     const chamDat = kep((phu.nay - tt.luc - QUAY_MS * .75 - 320) / 190, 0, 1);
     const ep = tt.quay ? Math.sin(chamDat * Math.PI) * .32 : 0;
 
-    if (v.loai === 'kien') {
+    if (v.loai === 'devo') {
+      const day = g.o * .1;
+      bongMem(ctx, px - SANG.x * day, py + g.o * .34 + day * .5, g.o * .36, .4);
+      khoi(ctx, px - g.o * .3, py - g.o * .3 + g.o * ep * .3, g.o * .6, g.o * .6 * (1 - ep * .3),
+        day, '#d8c9a8', '#9b8a68', g.o * .06);
+      ctx.strokeStyle = 'rgba(90,70,40,.55)';
+      ctx.lineWidth = Math.max(1, g.o * .035);
+      ctx.beginPath();
+      ctx.moveTo(px - g.o * .16, py - g.o * .28); ctx.lineTo(px - g.o * .02, py - g.o * .04);
+      ctx.lineTo(px - g.o * .13, py + g.o * .1); ctx.lineTo(px + g.o * .04, py + g.o * .28);
+      ctx.stroke();
+    } else if (v.loai === 'kien') {
       const day = g.o * .13;
       bongMem(ctx, px - SANG.x * day, py + g.o * .34 + day * .5, g.o * .4, .46);
       khoi(ctx, px - g.o * .33, py - g.o * .33 + g.o * ep * .3, g.o * .66, g.o * .66 * (1 - ep * .3),

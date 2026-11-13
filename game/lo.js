@@ -21,10 +21,22 @@ function batDau(man) {
 
 const coHo = (tt) => 1 + Math.floor(tt.nuot / 2);
 
+// Hố rộng thì không lách qua chỗ hẹp được. Một dòng luật, nhưng đây là thứ
+// biến game thành câu đố: hố chỉ to lên chứ không nhỏ lại, nên ăn sai thứ tự
+// là tự nhốt mình khỏi những ngóc ngách còn đồ. Trước đó bẫy = 0 ở cả 10 màn.
+//   cỡ 1: cần ≥1 lối — gần như mọi ô
+//   cỡ 2: cần ≥2 lối — hết chui vào ngõ cụt
+//   cỡ 3: cần ≥3 lối — hết đi trong hành lang
+const soLoi = (man, x, y) =>
+  [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(([dx, dy]) => !laTuong(man, x + dx, y + dy)).length;
+
 function buoc(man, tt, huong) {
   const [dx, dy] = { len: [0, -1], xuong: [0, 1], trai: [-1, 0], phai: [1, 0] }[huong];
   const nx = tt.x + dx, ny = tt.y + dy;
   if (laTuong(man, nx, ny)) return null;
+
+  if (soLoi(man, nx, ny) < coHo(tt))
+    return { tt, bao: 'Hố rộng quá, không lách qua chỗ hẹp đó.', loai: 'ket' };
 
   const v = tt.vat.find((k) => k.x === nx && k.y === ny);
   if (v && v.co > coHo(tt)) return { tt, bao: 'Hố còn bé hơn thứ đó.', loai: 'ket' };
