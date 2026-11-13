@@ -61,14 +61,15 @@ const VIEC = [
   },
   {
     khoa: 'xoay', game: xoay,
-    day: ['.....', '.....', '..@..', '.....', '....X'],
+    day: ['......', '......', '......', '......', '......', '@....X'],
     // BẮT BUỘC vuông, nếu không phép quay 90° không còn khớp lưới
     khung: [
       ['......', '......', '......', '......', '......', '......'],
       ['.......', '.......', '.......', '.......', '.......', '.......', '.......'],
     ],
-    dat: { '@': 1, 'X': 1, 'o': 3, 'v': 3, '#': 3 }, min: 3, max: 20,
-    dac: (c) => c.length >= 4,
+    dat: { '@': 1, 'X': 1, 'o': 3, 'v': 3, '#': 3 }, min: 5, max: 26,
+    // phải có ít nhất một cú NGHIÊNG, không thì ra toàn màn đi bộ là xong
+    dac: (c) => c.some((t) => t.quay),
   },
   {
     khoa: 'tachDoi', game: tachDoi,

@@ -39,9 +39,45 @@ function roi(tt) {
   }
 }
 
+// MỘT động từ, nghĩa đổi theo chỗ đứng:
+//   ô bên cạnh trống        -> đi bộ sang
+//   bị kiện hàng chặn       -> trèo lên nóc nó (hàng hoá thành bậc thang)
+//   đụng thành thùng        -> đẩy tiếp thì CẢ THÙNG nghiêng
+// Nhờ vậy chỗ đứng thành một phần câu đố: muốn nghiêng bên nào phải đi sang
+// bên ấy trước. Không gian trạng thái nhân lên theo vị trí, chứ không còn bó
+// vào đúng 4 hướng xoay — đó là lý do game này trước chỉ nặn ra nổi 10 màn.
 function buoc(man, tt, huong) {
   if (huong !== 'trai' && huong !== 'phai') return null;
   const chieu = huong === 'phai' ? 1 : -1;
+  const ng = tt.vat.find((v) => v.loai === 'nguoi');
+  const tx = ng.x + chieu, ty = ng.y;
+  const ngoai = (x, y) => x < 0 || y < 0 || x >= tt.n || y >= tt.n;
+  const chan = (x, y) => tt.tuong.has(`${x},${y}`) || tt.vat.some((v) => v !== ng && v.x === x && v.y === y);
+
+  if (!ngoai(tx, ty)) {
+    if (!chan(tx, ty)) return doiCho(tt, ng, tx, ty, chieu);
+    // trèo: ô đích bị chặn, nhưng nóc nó trống và đầu mình cũng trống
+    if (!ngoai(tx, ty - 1) && !chan(tx, ty - 1) && !chan(ng.x, ng.y - 1))
+      return doiCho(tt, ng, tx, ty - 1, chieu);
+    return null;                                   // kiện cao quá hoặc vách sắt
+  }
+  return nghiengThung(tt, chieu);                  // đụng thành thùng -> lật cả hộp
+}
+
+function doiCho(tt, ng, tx, ty, chieu) {
+  const moi = {
+    ...tt,
+    vat: tt.vat.map((v) => (v === ng ? { ...v, x: tx, y: ty } : { ...v })),
+    luc: performance.now(),
+    quay: 0,
+    buoc: chieu,
+    vo: null,
+    truoc: tt.vat.map((v) => ({ id: v.id, x: v.x, y: v.y })),
+  };
+  return xongNuoc(moi);
+}
+
+function nghiengThung(tt, chieu) {
   const n = tt.n;
   const moi = {
     n,
@@ -52,11 +88,16 @@ function buoc(man, tt, huong) {
     quay: chieu,
     huong: (tt.huong + chieu + 4) % 4,   // quai xách nhớ thùng đã quay bao nhiêu
     truoc: tt.vat.map((v) => { const [x, y] = quayDiem([v.x, v.y], n, chieu); return { id: v.id, x, y }; }),
+    buoc: 0,
+    vo: null,
   };
-  // Kiện dễ vỡ rơi quá 3 ô là vỡ, mất luôn. Đây là thứ KHÔNG LẤY LẠI ĐƯỢC
-  // mà game này vốn thiếu: nghiêng trái rồi nghiêng phải vẫn về chỗ cũ, nên
-  // trước đó bẫy = 0 ở cả 10 màn. Người chơi hay phải trèo lên kiện hàng mới
-  // tới được nắp hầm, làm vỡ nhầm một kiện là hỏng màn.
+  return xongNuoc(moi);
+}
+
+// Rơi, vỡ, rơi tiếp, rồi xét thắng. Kiện dễ vỡ rơi quá 3 ô là mất luôn — đây
+// là thứ KHÔNG LẤY LẠI ĐƯỢC mà game vốn thiếu (nghiêng trái rồi nghiêng phải
+// vẫn về chỗ cũ, nên trước đó bẫy = 0 ở cả 10 màn).
+function xongNuoc(moi) {
   const truocRoi = new Map(moi.vat.map((v) => [v.id, v.y]));
   roi(moi);
   const vo = moi.vat.filter((v) => v.loai === 'devo' && v.y - truocRoi.get(v.id) >= 3);
@@ -209,7 +250,7 @@ function veVanGo(c, W, H) {
 
 export default {
   ten: 'Thùng Hàng',
-  goi: '← → nghiêng cả thùng. Mọi thứ rơi theo chiều "dưới" mới. Đưa người xuống nắp hầm.',
+  goi: '← → đi bộ; chạm kiện hàng thì trèo lên. Đẩy vào thành thùng là cả thùng nghiêng, mọi thứ rơi theo chiều "dưới" mới. Kiện nhạt màu rơi quá 3 ô là vỡ. Đưa người xuống nắp hầm.',
   tyLe: .92,
   mau: { chinh: DAI, nen: NEN, phu: KIEN },
   batDau, buoc, ve,

@@ -205,7 +205,7 @@
 <header id="thanh">
   <span class="cham" aria-hidden="true"></span>
   <span class="dau">BỐN CƠ CHẾ</span>
-  <span class="may phai">sổ đăng bạ · 04 mục · 40 màn</span>
+  <span class="may phai" id="dem"></span>
   <button id="ve-chi-muc" class="may" type="button">← về chỉ mục</button>
 </header>
 
@@ -258,16 +258,16 @@ import tachDoi from './game/tach-doi.js';
 const GAME = [
   { khoa: 'lo', clip: 'lo', g: lo, truoc: 'Donut County · Hole.io',
     nen: '#191008', muc: '#f3e7d2', mo: '#9c8769', ke: '#2d2014', sac: '#e2a24a',
-    sieu: ['10 màn', '4–25 nước', 'đã có người làm'] },
+    nhan: 'đã có người làm' },
   { khoa: 'thoi-gian', clip: 'thoiGian', g: thoiGian, truoc: 'chưa thấy ai làm',
     nen: '#0a0d13', muc: '#e9f0f9', mo: '#78889e', ke: '#1b2230', sac: '#9cc2ea',
-    sieu: ['10 màn', '9–21 nước', 'chưa thấy ai làm'] },
+    nhan: 'chưa thấy ai làm' },
   { khoa: 'xoay', clip: 'xoay', g: xoay, truoc: 'Turnabout (PS1, 2000)',
     nen: '#17110c', muc: '#f2e6d4', mo: '#9c8468', ke: '#2b2017', sac: '#c98e3f',
-    sieu: ['10 màn', '1–14 nước', 'đã có người làm'] },
+    nhan: 'đã có người làm' },
   { khoa: 'tach-doi', clip: 'tachDoi', g: tachDoi, truoc: 'chưa thấy ai làm',
     nen: '#04070d', muc: '#e6f7ff', mo: '#6b8599', ke: '#132130', sac: '#6ee7ff',
-    sieu: ['10 màn', '4–18 nước', 'chưa thấy ai làm'] },
+    nhan: 'chưa thấy ai làm' },
 ];
 
 const NUT = [
@@ -395,7 +395,7 @@ GAME.forEach((m, i) => {
     <span class="noi">
       <h2>${m.g.ten}</h2>
       <p>${m.g.goi}</p>
-      <span class="sieu may">${m.sieu.map((s, j) => (j === 2 ? `<b>${s}</b>` : `<span>${s}</span>`)).join('')}</span>
+      <span class="sieu may"><span>${m.g.MAN.length} màn</span><b>${m.nhan}</b></span>
     </span>
     <span class="tam"><canvas aria-hidden="true"></canvas><span class="vao-mui may">chơi →</span></span>`;
   muc.addEventListener('click', () => mo(m.khoa));
@@ -458,6 +458,10 @@ function dong() {
 }
 document.getElementById('ve-chi-muc').addEventListener('click', dong);
 addEventListener('keydown', (e) => { if (e.key === 'Escape' && document.body.classList.contains('dang-choi')) dong(); });
+
+// tự đếm, đừng ghi cứng — số màn đổi mỗi lần chạy lại bộ dò
+document.getElementById('dem').textContent =
+  `sổ đăng bạ · ${String(GAME.length).padStart(2, '0')} mục · ${GAME.reduce((t, m) => t + m.g.MAN.length, 0)} màn`;
 
 requestAnimationFrame(vongClip);
 const dau = location.hash.slice(1);
