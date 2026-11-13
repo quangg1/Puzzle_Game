@@ -1,7 +1,7 @@
 // THÙNG HÀNG — mũi tên trái/phải là nghiêng cả cái thùng 90°.
 // Người và kiện hàng rơi theo chiều "dưới" mới. Đưa người xuống nắp hầm.
 // Thế giới: khung thùng gỗ đóng đai sắt, có quai — để thấy rõ là CÁI THÙNG quay.
-import { laTuong, tamO, oTron, kep, muot, lerp, nhieu, bongMem, toiGoc } from '../nen.js';
+import { laTuong, tamO, oTron, kep, muot, lerp, nhieu, bongMem, toiGoc, khoi, nhanVat, SANG } from '../nen.js';
 import { MAN } from '../man.js';
 
 const GO = '#8a6240', GO_TOI = '#5c3f28', DAI = '#b9873f';
@@ -144,22 +144,25 @@ function ve(ctx, man, tt, g, phu) {
     const x = d ? lerp(d.x, v.x, roiP) : v.x;
     const y = d ? lerp(d.y, v.y, roiP) : v.y;
     const [px, py] = tamO(g, x, y);
+    // bẹp một nhịp ngay khi tiếp đất — thứ cho cú rơi có sức nặng
+    const chamDat = kep((phu.nay - tt.luc - QUAY_MS * .75 - 320) / 190, 0, 1);
+    const ep = tt.quay ? Math.sin(chamDat * Math.PI) * .32 : 0;
+
     if (v.loai === 'kien') {
-      bongMem(ctx, px, py + g.o * .36, g.o * .36, .4);
-      ctx.fillStyle = KIEN;
-      oTron(ctx, px - g.o * .33, py - g.o * .33, g.o * .66, g.o * .66, g.o * .08);
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(92,63,40,.75)';
-      ctx.lineWidth = Math.max(1.5, g.o * .055);
-      ctx.beginPath();
-      ctx.moveTo(px - g.o * .33, py); ctx.lineTo(px + g.o * .33, py);
-      ctx.stroke();
+      const day = g.o * .13;
+      bongMem(ctx, px - SANG.x * day, py + g.o * .34 + day * .5, g.o * .4, .46);
+      khoi(ctx, px - g.o * .33, py - g.o * .33 + g.o * ep * .3, g.o * .66, g.o * .66 * (1 - ep * .3),
+        day, KIEN, '#7d5126', g.o * .07);
+      ctx.fillStyle = 'rgba(70,43,20,.5)';
+      ctx.fillRect(px - g.o * .33, py - g.o * .04 + g.o * ep * .3, g.o * .66, g.o * .09);
     } else {
-      bongMem(ctx, px, py + g.o * .3, g.o * .34, .45);
-      ctx.fillStyle = NGUOI;
-      ctx.beginPath(); ctx.arc(px, py, g.o * .26, 0, 7); ctx.fill();
-      ctx.fillStyle = 'rgba(25,20,16,.55)';
-      ctx.beginPath(); ctx.arc(px, py - g.o * .09, g.o * .1, 0, 7); ctx.fill();
+      // nhìn về phía nắp hầm — thằng bé biết mình cần tới đâu
+      const nhin = [tt.nap[0] - v.x, tt.nap[1] - v.y];
+      bongMem(ctx, px, py + g.o * .3, g.o * .36 * (1 + ep), .48);
+      nhanVat(ctx, px, py, g.o * .26, {
+        nhin: nhin[0] || nhin[1] ? nhin : [0, 1], ep,
+        than: NGUOI, toi: 'rgba(25,20,16,.82)', nay: phu.nay, mam: v.id,
+      });
     }
   }
   ctx.restore();

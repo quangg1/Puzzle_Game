@@ -52,6 +52,74 @@ export function oTron(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
+// MỘT hướng sáng cho cả trang. Thiếu nó thì mỗi vật tự sáng một kiểu và
+// cả bàn cờ trông như hình dán phẳng.
+export const SANG = { x: -.42, y: -.62 };
+
+// Khối có bề dày: mặt bên tối ở dưới, mặt trên sáng, một vệt gờ phía đón sáng.
+// Đây là thứ biến "hình vuông" thành "vật thể".
+export function khoi(ctx, px, py, w, h, day, tren, canh, r = 4) {
+  oTron(ctx, px - SANG.x * day * .5, py + day, w, h, r);
+  ctx.fillStyle = canh;
+  ctx.fill();
+  oTron(ctx, px, py, w, h, r);
+  ctx.fillStyle = tren;
+  ctx.fill();
+  ctx.save();
+  oTron(ctx, px, py, w, h, r);
+  ctx.clip();
+  ctx.fillStyle = 'rgba(255,255,255,.17)';
+  ctx.fillRect(px, py, w, Math.max(1, h * .17));
+  ctx.fillStyle = 'rgba(0,0,0,.14)';
+  ctx.fillRect(px, py + h * .78, w, h * .22);
+  ctx.restore();
+}
+
+// Nhân vật: thân + MẮT nhìn theo hướng vừa đi, biết nháy, biết bẹp khi tiếp đất.
+// Hai con mắt là khác biệt giữa "một chấm tròn" và "một sinh vật".
+export function nhanVat(ctx, x, y, r, { nhin = [0, 1], ep = 0, than = '#f2f7fd', toi = 'rgba(10,12,18,.82)', nay = 0, mam = 0 } = {}) {
+  const [nx, ny] = nhin;
+  const d = Math.hypot(nx, ny) || 1;
+  const lx = (nx / d), ly = (ny / d);
+
+  ctx.save();
+  ctx.translate(x, y + r * ep * .55);
+  ctx.scale(1 + ep * .3, 1 - ep * .3);
+
+  ctx.fillStyle = than;
+  ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.fill();
+  // tô bóng phía khuất sáng cho thân có độ cong
+  const t = ctx.createRadialGradient(SANG.x * r * .8, SANG.y * r * .8, r * .12, 0, 0, r * 1.12);
+  t.addColorStop(0, 'rgba(255,255,255,.3)');
+  t.addColorStop(.62, 'rgba(255,255,255,0)');
+  t.addColorStop(1, 'rgba(0,0,0,.26)');
+  ctx.fillStyle = t;
+  ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.fill();
+
+  // nháy mắt: ~90ms mỗi ~3.4s, lệch pha theo mầm để nhiều nhân vật không nháy cùng lúc
+  const chu = 3400 + (mam % 7) * 260;
+  const nhay = ((nay + mam * 719) % chu) < 95;
+  const cachMat = r * .36, caoMat = r * .1;
+  for (const ben of [-1, 1]) {
+    const mx = lx * r * .3 - ly * cachMat * ben;
+    const my = ly * r * .3 + lx * cachMat * ben - caoMat;
+    if (nhay) {
+      ctx.strokeStyle = toi;
+      ctx.lineWidth = Math.max(1.2, r * .11);
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(mx - r * .17, my); ctx.lineTo(mx + r * .17, my);
+      ctx.stroke();
+    } else {
+      ctx.fillStyle = toi;
+      ctx.beginPath(); ctx.ellipse(mx, my, r * .17, r * .21, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,.9)';
+      ctx.beginPath(); ctx.arc(mx - r * .055, my - r * .07, r * .055, 0, 7); ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
 // bóng đổ mềm — thứ duy nhất tạo được cảm giác vật nằm TRÊN mặt sàn
 export function bongMem(ctx, x, y, r, dam = .34) {
   const t = ctx.createRadialGradient(x, y, 0, x, y, r);
@@ -154,6 +222,7 @@ export function chay(hop, game) {
 
   let soMan = 0, man, tt, lichSu = [], xong = false, tl = 1;
   let truoc = null, batDauChuyen = -1e9, lanTruoc = performance.now();
+  let huongCuoi = 'xuong', lucMoMan = performance.now();
   let rungLuc = -1e9, rungManh = 0;
   const bui = taoBui();
   const van = khoVan();
@@ -165,6 +234,8 @@ export function chay(hop, game) {
     lichSu = [];
     xong = false;
     truoc = null;
+    huongCuoi = 'xuong';
+    lucMoMan = performance.now();
     bui.xoa();
     bao('');
     doCo();
@@ -211,6 +282,8 @@ export function chay(hop, game) {
       W, H, g,
       nay: itDong ? nay + 1e6 : nay,
       truoc, p, pm: bat(p), bui, rung, van,
+      huongCuoi,                                   // để nhân vật nhìn theo hướng vừa đi
+      vaoMan: itDong ? 1 : kep((nay - lucMoMan) / 680, 0, 1),   // vật nhập cuộc khi mở màn
     });
     bui.chay(ctx, itDong ? 0 : dt);
     ctx.setTransform(tl, 0, 0, tl, 0, 0);
@@ -233,6 +306,7 @@ export function chay(hop, game) {
     if (!kq) return;
     if (kq.tt === tt) { bao(kq.bao ?? '', kq.loai ?? ''); rung(.5); ve(); return; }
     lichSu.push(tt);
+    huongCuoi = huong;
     chuyen(tt);
     tt = kq.tt;
     bao(kq.bao ?? '', kq.loai ?? '');

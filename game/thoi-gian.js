@@ -1,7 +1,7 @@
 // CUỘN PHIM — mỗi HÀNG là một khung hình, tức một khoảnh khắc.
 // Trái/phải: đi trong không gian. Lên/xuống: đi trong thời gian.
 // Rời một khung thì để lại bản thân cũ đứng đó, và nó chắn đường bạn.
-import { laTuong, tamO, oTron, kep, lerp, muot, nhieu, bongMem, toiGoc } from '../nen.js';
+import { laTuong, tamO, oTron, kep, lerp, muot, nhieu, bongMem, toiGoc, nhanVat } from '../nen.js';
 import { MAN } from '../man.js';
 
 const NEN = '#090b10', KHUNG = '#2d3845';
@@ -160,13 +160,13 @@ function ve(ctx, man, tt, g, phu) {
     }
   }
 
-  bongMem(ctx, px, py + g.o * .26, g.o * .3, .4);
-  ctx.fillStyle = NGUOI;
-  ctx.beginPath(); ctx.arc(px, py, g.o * .24, 0, 7); ctx.fill();
-  ctx.fillStyle = 'rgba(9,11,16,.5)';
-  ctx.beginPath(); ctx.arc(px, py - g.o * .08, g.o * .09, 0, 7); ctx.fill();
-  ctx.fillStyle = 'rgba(255,255,255,.5)';
-  ctx.beginPath(); ctx.arc(px - g.o * .08, py - g.o * .09, g.o * .06, 0, 7); ctx.fill();
+  const NHIN = { len: [0, -1], xuong: [0, 1], trai: [-1, 0], phai: [1, 0] };
+  bongMem(ctx, px, py + g.o * .26, g.o * .3, .42);
+  nhanVat(ctx, px, py, g.o * .24, {
+    nhin: NHIN[phu.huongCuoi] ?? [0, 1],
+    ep: (1 - muot(phu.p)) * .22,
+    than: NGUOI, toi: 'rgba(9,11,16,.82)', nay: phu.nay,
+  });
 }
 
 export default {
