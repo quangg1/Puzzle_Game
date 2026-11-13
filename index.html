@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bốn Cơ Chế — sổ đăng bạ bốn luật chơi</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    color-scheme: dark;
+    --nen: #0b0b0d;
+    --muc: #f0eee9;
+    --mo: #8b8984;
+    --ke: #1e1e21;
+    --sac: #c9a227;
+    --hien: 'Syne', ui-sans-serif, system-ui, sans-serif;
+    --than: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+    --may: 'IBM Plex Mono', ui-monospace, monospace;
+    --chen: clamp(1.25rem, 4vw, 4.5rem);
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  html, body { margin: 0; background: var(--nen); }
+  body {
+    color: var(--mo);
+    font: 300 clamp(15px, 1.05vw, 16.5px)/1.7 var(--than);
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+    transition: background-color .7s cubic-bezier(.16,1,.3,1), color .7s cubic-bezier(.16,1,.3,1);
+  }
+  ::selection { background: var(--sac); color: #0b0b0d; }
+  ::-webkit-scrollbar { width: 10px; }
+  ::-webkit-scrollbar-track { background: #0b0b0d; }
+  ::-webkit-scrollbar-thumb { background: #26262a; }
+  ::-webkit-scrollbar-thumb:hover { background: #36363c; }
+
+  /* hạt phim phủ toàn trang — ấm lên, bớt phẳng */
+  #hat {
+    position: fixed; inset: 0; pointer-events: none; z-index: 60;
+    opacity: .3; mix-blend-mode: overlay;
+  }
+
+  .may {
+    font: 500 11px/1 var(--may);
+    letter-spacing: .16em; text-transform: uppercase;
+  }
+
+  /* ── thanh trạng thái, không phải navbar ba cột ──────────── */
+  #thanh {
+    position: sticky; top: 0; z-index: 40;
+    display: flex; align-items: center; gap: 14px;
+    padding: 14px var(--chen); border-bottom: 1px solid var(--ke);
+    background: color-mix(in srgb, var(--nen) 88%, transparent);
+    backdrop-filter: blur(10px);
+  }
+  #thanh .dau { font: 700 13px/1 var(--hien); letter-spacing: .02em; color: var(--muc); }
+  #thanh .cham {
+    width: 6px; height: 6px; border-radius: 50%; background: var(--sac);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--sac) 60%, transparent);
+    animation: tho 2.6s ease-out infinite;
+  }
+  @keyframes tho {
+    0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--sac) 55%, transparent); }
+    70%, 100% { box-shadow: 0 0 0 9px transparent; }
+  }
+  #thanh .phai { margin-left: auto; color: var(--mo); }
+  #ve-chi-muc {
+    margin-left: auto; background: none; border: 0; cursor: pointer;
+    color: var(--mo); padding: 8px 0; display: none;
+  }
+  #ve-chi-muc:hover { color: var(--muc); }
+  body.dang-choi #ve-chi-muc { display: block; }
+  body.dang-choi #thanh .phai { display: none; }
+
+  /* ── mở đầu ───────────────────────────────────────────────── */
+  #mo-dau { padding: clamp(3.5rem, 11vh, 8rem) var(--chen) clamp(2.5rem, 7vh, 5rem); }
+  #mo-dau h1 {
+    /* .95 chứ không phải .88: tiếng Việt có dấu chồng, chặt quá là cấn dòng */
+    font: 800 clamp(2.9rem, 10.5vw, 9rem)/.95 var(--hien);
+    letter-spacing: -.045em; color: var(--muc); margin: 18px 0 0;
+    text-wrap: balance;
+  }
+  #mo-dau h1 em { font-style: normal; color: var(--sac); }
+  #mo-dau .deck {
+    margin: clamp(1.4rem, 3vw, 2.4rem) 0 0; max-width: 46ch;
+    font-size: clamp(1rem, 1.35vw, 1.2rem); line-height: 1.65;
+  }
+  .vao { opacity: 0; transform: translateY(14px); animation: vao .9s cubic-bezier(.16,1,.3,1) forwards; }
+  @keyframes vao { to { opacity: 1; transform: none; } }
+
+  /* ── sổ đăng bạ: bốn mục toàn chiều ngang ─────────────────── */
+  #so { border-top: 1px solid var(--ke); }
+  .muc {
+    --sacm: var(--sac);
+    display: grid; grid-template-columns: 4.5rem minmax(0, 1fr) minmax(0, 1.05fr);
+    gap: clamp(1rem, 3vw, 3rem); align-items: center; width: 100%;
+    padding: clamp(1.6rem, 3.4vw, 2.9rem) var(--chen);
+    border-bottom: 1px solid var(--ke); background: none; cursor: pointer;
+    text-align: left; color: inherit; font: inherit; position: relative;
+    transition: background-color .5s cubic-bezier(.16,1,.3,1);
+  }
+  .muc::before {
+    content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px;
+    background: var(--sacm); transform: scaleY(0); transform-origin: top;
+    transition: transform .5s cubic-bezier(.16,1,.3,1);
+  }
+  .muc:hover, .muc:focus-visible { background: color-mix(in srgb, var(--sacm) 7%, transparent); }
+  .muc:hover::before, .muc:focus-visible::before { transform: scaleY(1); }
+  .muc:focus-visible { outline: none; }
+  /* hàng chẵn đổi bên cho có nhịp — đổi CỘT, không đổi order:
+     order:-1 sẽ ném tấm hình vào cột 4.5rem và bóp nó còn một mẩu */
+  .muc:nth-child(even) { grid-template-columns: 4.5rem minmax(0, 1.05fr) minmax(0, 1fr); }
+  .muc:nth-child(even) .tam { grid-column: 2; }
+  .muc:nth-child(even) .noi { grid-column: 3; }
+  .muc .so-tt {
+    font: 500 12px/1 var(--may); letter-spacing: .1em;
+    color: var(--mo); align-self: start; padding-top: .55rem;
+  }
+  .muc h2 {
+    font: 700 clamp(1.45rem, 3.1vw, 2.5rem)/1.04 var(--hien);
+    letter-spacing: -.028em; color: var(--muc); margin: 0 0 .5rem;
+    transition: color .4s ease;
+  }
+  .muc:hover h2 { color: var(--sacm); }
+  .muc p { margin: 0; max-width: 52ch; font-size: .95em; }
+  .muc .sieu {
+    margin-top: 1rem; display: flex; flex-wrap: wrap; gap: .5rem 1.1rem;
+    color: #6f6d69;
+  }
+  .muc .sieu b { color: var(--sacm); font-weight: 500; }
+  .muc .tam {
+    position: relative; aspect-ratio: 16 / 7; overflow: hidden;
+    border: 1px solid var(--ke);
+  }
+  .muc .tam canvas { display: block; width: 100%; height: 100%; }
+  .muc .vao-mui {
+    position: absolute; right: 10px; bottom: 8px; color: var(--sacm);
+    opacity: 0; transform: translateX(-6px);
+    transition: opacity .4s ease, transform .4s cubic-bezier(.16,1,.3,1);
+  }
+  .muc:hover .vao-mui, .muc:focus-visible .vao-mui { opacity: 1; transform: none; }
+
+  /* ── sân chơi: lấy luôn bảng màu của game ─────────────────── */
+  .san { display: none; padding: clamp(1.4rem, 3.5vh, 2.6rem) var(--chen) 4rem; }
+  .san.dang-choi { display: block; animation: vao .55s cubic-bezier(.16,1,.3,1) both; }
+  .san .tieu {
+    display: flex; align-items: baseline; gap: 1rem 1.6rem; flex-wrap: wrap;
+    padding-bottom: 1rem; border-bottom: 1px solid var(--ke); margin-bottom: clamp(1.1rem, 3vh, 2rem);
+  }
+  .san h2 {
+    font: 700 clamp(1.6rem, 3.4vw, 2.7rem)/1 var(--hien);
+    letter-spacing: -.03em; color: var(--muc); margin: 0;
+  }
+  .san .nhip { margin-left: auto; display: flex; align-items: center; gap: 1.1rem; }
+  .san .so { color: var(--mo); white-space: nowrap; }
+  .vach { display: flex; gap: 4px; }
+  .vach i { width: 13px; height: 3px; background: #33333a; transition: background-color .35s ease; }
+  .vach i.qua { background: color-mix(in srgb, var(--sac) 55%, transparent); }
+  .vach i.nay { background: var(--sac); box-shadow: 0 0 10px color-mix(in srgb, var(--sac) 70%, transparent); }
+
+  canvas.ban {
+    width: 100%; max-width: 660px; margin-inline: auto; display: block;
+    touch-action: none; border: 1px solid var(--ke);
+  }
+  .san .goi { margin: 1.3rem auto 0; max-width: 62ch; font-size: .95em; }
+  .bao {
+    min-height: 1.6em; margin: .5rem auto 0; max-width: 62ch;
+    font: 500 .95em/1.6 var(--than); color: transparent;
+  }
+  .bao.ket { color: #e08a63; }
+  .bao.thang { color: var(--sac); }
+
+  .dieu { display: flex; gap: .55rem; flex-wrap: wrap; margin: 1.5rem auto 0; max-width: 62ch; }
+  button.nut {
+    min-height: 44px; padding: 0 1.05rem; cursor: pointer; background: none;
+    border: 1px solid var(--ke); color: var(--mo); border-radius: 2px;
+    font: 500 11px/1 var(--may); letter-spacing: .13em; text-transform: uppercase;
+    transition: color .3s ease, border-color .3s ease, background-color .3s ease;
+  }
+  button.nut:hover { color: var(--sac); border-color: color-mix(in srgb, var(--sac) 55%, transparent); }
+  button.nut:focus-visible { outline: 2px solid var(--sac); outline-offset: 2px; }
+  .phim { margin: 1.1rem auto 0; max-width: 62ch; color: #5f5d5a; font-size: 12px; }
+  kbd {
+    font: 400 11px/1 var(--may); border: 1px solid var(--ke);
+    border-radius: 2px; padding: 3px 6px; color: var(--mo);
+  }
+
+  @media (max-width: 760px) {
+    .muc, .muc:nth-child(even) { grid-template-columns: 2.6rem 1fr; }
+    .muc .tam, .muc:nth-child(even) .tam { grid-column: 1 / -1; }
+    .muc:nth-child(even) .noi { grid-column: 2; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before { transition-duration: .01ms !important; animation: none !important; opacity: 1 !important; transform: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<svg id="hat" aria-hidden="true"><filter id="f-hat"><feTurbulence type="fractalNoise" baseFrequency="0.82" numOctaves="3"/></filter><rect width="100%" height="100%" filter="url(#f-hat)"/></svg>
+
+<header id="thanh">
+  <span class="cham" aria-hidden="true"></span>
+  <span class="dau">BỐN CƠ CHẾ</span>
+  <span class="may phai">sổ đăng bạ · 04 mục · 40 màn</span>
+  <button id="ve-chi-muc" class="may" type="button">← về chỉ mục</button>
+</header>
+
+<main id="chi-muc">
+  <section id="mo-dau">
+    <span class="may vao" style="animation-delay:.05s; display:block; color:#6f6d69">bốn luật chơi · mỗi luật một thế giới</span>
+    <h1 class="vao" style="animation-delay:.12s">Luật chơi<br>là thứ <em>nhìn</em><br>mà hiểu.</h1>
+    <p class="deck vao" style="animation-delay:.24s">
+      Bốn game nhỏ, không game nào giải thích luật bằng chữ. Mỗi cái dựng một thế giới
+      mà bản thân thế giới đó đã nói ra luật — cát thì rơi xuống hố, điện thì chẻ nhánh,
+      thùng thì nghiêng. Mọi màn đều đã được bộ giải xác nhận là giải được.
+    </p>
+  </section>
+  <section id="so" aria-label="Bốn game"></section>
+</main>
+
+<section class="san" data-san="lo" aria-label="Hố Sụt">
+  <div class="tieu"><h2 data-ten></h2><span class="nhip"><span class="vach" data-vach></span><span class="may so" data-so></span></span></div>
+  <canvas class="ban" aria-label="Bàn chơi Hố Sụt"></canvas>
+  <p class="goi" data-goi></p><p class="bao" data-bao role="status" aria-live="polite"></p>
+  <div class="dieu"></div>
+</section>
+<section class="san" data-san="thoi-gian" aria-label="Cuộn Phim">
+  <div class="tieu"><h2 data-ten></h2><span class="nhip"><span class="vach" data-vach></span><span class="may so" data-so></span></span></div>
+  <canvas class="ban" aria-label="Bàn chơi Cuộn Phim"></canvas>
+  <p class="goi" data-goi></p><p class="bao" data-bao role="status" aria-live="polite"></p>
+  <div class="dieu"></div>
+</section>
+<section class="san" data-san="xoay" aria-label="Thùng Hàng">
+  <div class="tieu"><h2 data-ten></h2><span class="nhip"><span class="vach" data-vach></span><span class="may so" data-so></span></span></div>
+  <canvas class="ban" aria-label="Bàn chơi Thùng Hàng"></canvas>
+  <p class="goi" data-goi></p><p class="bao" data-bao role="status" aria-live="polite"></p>
+  <div class="dieu"></div>
+</section>
+<section class="san" data-san="tach-doi" aria-label="Tia Sét">
+  <div class="tieu"><h2 data-ten></h2><span class="nhip"><span class="vach" data-vach></span><span class="may so" data-so></span></span></div>
+  <canvas class="ban" aria-label="Bàn chơi Tia Sét"></canvas>
+  <p class="goi" data-goi></p><p class="bao" data-bao role="status" aria-live="polite"></p>
+  <div class="dieu"></div>
+</section>
+
+<script type="module">
+import { chay } from './nen.js';
+import lo from './game/lo.js';
+import thoiGian from './game/thoi-gian.js';
+import xoay from './game/xoay.js';
+import tachDoi from './game/tach-doi.js';
+
+// Mỗi game một bảng màu riêng — mở game nào thì CẢ TRANG mặc màu thế giới đó.
+const GAME = [
+  { khoa: 'lo', clip: 'lo', g: lo, truoc: 'Donut County · Hole.io',
+    nen: '#191008', muc: '#f3e7d2', mo: '#9c8769', ke: '#2d2014', sac: '#e2a24a',
+    sieu: ['10 màn', '4–25 nước', 'đã có người làm'] },
+  { khoa: 'thoi-gian', clip: 'thoiGian', g: thoiGian, truoc: 'chưa thấy ai làm',
+    nen: '#0a0d13', muc: '#e9f0f9', mo: '#78889e', ke: '#1b2230', sac: '#9cc2ea',
+    sieu: ['10 màn', '9–21 nước', 'chưa thấy ai làm'] },
+  { khoa: 'xoay', clip: 'xoay', g: xoay, truoc: 'Turnabout (PS1, 2000)',
+    nen: '#17110c', muc: '#f2e6d4', mo: '#9c8468', ke: '#2b2017', sac: '#c98e3f',
+    sieu: ['10 màn', '1–14 nước', 'đã có người làm'] },
+  { khoa: 'tach-doi', clip: 'tachDoi', g: tachDoi, truoc: 'chưa thấy ai làm',
+    nen: '#04070d', muc: '#e6f7ff', mo: '#6b8599', ke: '#132130', sac: '#6ee7ff',
+    sieu: ['10 màn', '4–18 nước', 'chưa thấy ai làm'] },
+];
+
+const NUT = [
+  ['lui', 'Lùi một nước', 'lùi'],
+  ['lai', 'Chơi lại màn này', 'làm lại'],
+  ['truoc', 'Màn trước', '← màn'],
+  ['sau', 'Màn sau', 'màn →'],
+];
+
+const so = document.getElementById('so');
+const chiMuc = document.getElementById('chi-muc');
+const clip = [];
+
+const kep = (v, a, b) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const muot = (t) => (t < .5 ? 2 * t * t : 1 - ((-2 * t + 2) ** 2) / 2);
+
+const VE_CLIP = {
+  lo(c, W, H, t) {
+    c.fillStyle = '#191008'; c.fillRect(0, 0, W, H);
+    c.fillStyle = '#c9a977'; c.fillRect(0, H * .4, W, H * .34);
+    const p = (t % 4200) / 4200, hx = lerp(W * .1, W * .92, p), hy = H * .57;
+    let an = 0;
+    for (const sx of [.32, .56, .79]) {
+      const px = W * sx, e = kep((hx - px + 16) / 16, 0, 1);
+      an += e;
+      if (e >= 1) continue;
+      c.fillStyle = '#aab6c0';
+      c.beginPath(); c.arc(px, hy, 5.5 * (1 - e), 0, 7); c.fill();
+    }
+    const r = 8 + an * 3;
+    c.fillStyle = '#9c7a4e'; c.beginPath(); c.ellipse(hx, hy, r * 1.2, r * 1.05, 0, 0, 7); c.fill();
+    c.fillStyle = '#07050a'; c.beginPath(); c.ellipse(hx, hy, r, r * .88, 0, 0, 7); c.fill();
+  },
+  thoiGian(c, W, H, t) {
+    c.fillStyle = '#0a0d13'; c.fillRect(0, 0, W, H);
+    const n = 3, hc = H / (n + .3);
+    for (let i = 0; i < n; i++) {
+      c.fillStyle = '#1d2531';
+      c.fillRect(W * .11, H * .08 + i * hc, W * .78, hc * .8);
+      c.fillStyle = '#0a0d13';
+      for (const lx of [W * .055, W * .905])
+        c.fillRect(lx, H * .08 + i * hc + hc * .25, W * .035, hc * .3);
+    }
+    const p = (t % 4200) / 4200, b = Math.min(Math.floor(p * 3.6), n - 1);
+    const sub = muot(kep(p * 3.6 - b, 0, 1));
+    const oy = (i) => H * .08 + i * hc + hc * .4;
+    for (let i = 0; i < b; i++) {
+      c.fillStyle = 'rgba(165,195,225,.3)';
+      c.beginPath(); c.arc(W * (.28 + i * .17), oy(i), 5, 0, 7); c.fill();
+    }
+    c.fillStyle = '#f2f7fd';
+    c.beginPath();
+    c.arc(W * (.28 + b * .17), lerp(oy(Math.max(0, b - 1)), oy(b), b ? sub : 1), 6, 0, 7);
+    c.fill();
+  },
+  xoay(c, W, H, t) {
+    c.fillStyle = '#17110c'; c.fillRect(0, 0, W, H);
+    const s = H * .58, cx = W / 2, cy = H / 2;
+    const p = (t % 3600) / 3600, b = Math.floor(p * 3), sub = muot(kep((p * 3 - b) / .6, 0, 1));
+    c.save();
+    c.translate(cx, cy); c.rotate((b + sub) * Math.PI / 2); c.translate(-cx, -cy);
+    c.fillStyle = '#2a211a'; c.fillRect(cx - s / 2, cy - s / 2, s, s);
+    c.strokeStyle = '#c98e3f'; c.lineWidth = 2.5;
+    c.strokeRect(cx - s / 2, cy - s / 2, s, s);
+    c.beginPath(); c.arc(cx, cy - s / 2, s * .1, Math.PI, 0); c.stroke();
+    c.restore();
+    const roi = muot(kep((p * 3 - b - .6) / .4, 0, 1));
+    for (const dx of [-.24, .02, .24]) {
+      c.fillStyle = '#c38b4e';
+      c.fillRect(cx + s * dx - 7, lerp(cy - s * .22, cy + s * .3, roi) - 7, 14, 14);
+    }
+    c.fillStyle = '#f2e6d4';
+    c.beginPath(); c.arc(cx + s * .36, lerp(cy - s * .32, cy + s * .28, roi), 6.5, 0, 7); c.fill();
+  },
+  tachDoi(c, W, H, t) {
+    c.fillStyle = '#04070d'; c.fillRect(0, 0, W, H);
+    const goc = [W * .12, H / 2], nga = [W * .46, H / 2];
+    const dich = [[W * .89, H * .2], [W * .89, H * .8]];
+    c.strokeStyle = '#132130'; c.lineWidth = 7; c.lineCap = 'round';
+    for (const d of dich) {
+      c.beginPath(); c.moveTo(goc[0], goc[1]); c.lineTo(nga[0], nga[1]); c.lineTo(d[0], d[1]); c.stroke();
+    }
+    for (const d of dich) {
+      c.strokeStyle = '#f0a93c'; c.lineWidth = 2;
+      c.beginPath(); c.arc(d[0], d[1], 7.5, 0, 7); c.stroke();
+    }
+    const p = (t % 3400) / 3400;
+    const a = muot(kep(p / .38, 0, 1)), b2 = muot(kep((p - .46) / .38, 0, 1));
+    const cham = (x, y) => {
+      const q = c.createRadialGradient(x, y, 0, x, y, 19);
+      q.addColorStop(0, 'rgba(110,231,255,.5)'); q.addColorStop(1, 'rgba(110,231,255,0)');
+      c.fillStyle = q; c.beginPath(); c.arc(x, y, 19, 0, 7); c.fill();
+      c.fillStyle = '#eafcff'; c.beginPath(); c.arc(x, y, 5, 0, 7); c.fill();
+    };
+    if (b2 <= 0) cham(lerp(goc[0], nga[0], a), goc[1]);
+    else for (const d of dich) cham(lerp(nga[0], d[0], b2), lerp(nga[1], d[1], b2));
+  },
+};
+
+function vongClip(nay) {
+  for (const { cv, m } of clip) {
+    const r = cv.getBoundingClientRect();
+    if (!r.width || !r.height) continue;
+    const tl = Math.min(devicePixelRatio || 1, 2);
+    if (cv.width !== Math.round(r.width * tl)) {
+      cv.width = Math.round(r.width * tl);
+      cv.height = Math.round(r.height * tl);
+    }
+    const c = cv.getContext('2d');
+    c.setTransform(tl, 0, 0, tl, 0, 0);
+    VE_CLIP[m.clip](c, r.width, r.height, nay);
+  }
+  requestAnimationFrame(vongClip);
+}
+
+GAME.forEach((m, i) => {
+  const muc = document.createElement('button');
+  muc.className = 'muc vao';
+  muc.type = 'button';
+  muc.style.animationDelay = `${.34 + i * .09}s`;
+  muc.style.setProperty('--sacm', m.sac);
+  muc.innerHTML = `
+    <span class="so-tt">0${i + 1}</span>
+    <span class="noi">
+      <h2>${m.g.ten}</h2>
+      <p>${m.g.goi}</p>
+      <span class="sieu may">${m.sieu.map((s, j) => (j === 2 ? `<b>${s}</b>` : `<span>${s}</span>`)).join('')}</span>
+    </span>
+    <span class="tam"><canvas aria-hidden="true"></canvas><span class="vao-mui may">chơi →</span></span>`;
+  muc.addEventListener('click', () => mo(m.khoa));
+  so.appendChild(muc);
+  clip.push({ cv: muc.querySelector('canvas'), m });
+
+  const san = document.querySelector(`[data-san="${m.khoa}"]`);
+  san.querySelector('[data-goi]').textContent = m.g.goi;
+
+  const dieu = san.querySelector('.dieu');
+  for (const [lam, nhan, chu] of NUT) {
+    const b = document.createElement('button');
+    b.className = 'nut'; b.type = 'button'; b.dataset.lam = lam;
+    b.setAttribute('aria-label', nhan); b.textContent = chu;
+    dieu.appendChild(b);
+  }
+  const phim = document.createElement('p');
+  phim.className = 'phim';
+  phim.innerHTML = '<kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> hoặc vuốt &nbsp; <kbd>Z</kbd> lùi &nbsp; <kbd>R</kbd> làm lại';
+  san.appendChild(phim);
+
+  // vạch tiến độ: bám theo dòng "màn n/10" mà nền tự cập nhật
+  const vach = san.querySelector('[data-vach]');
+  for (let k = 0; k < m.g.MAN.length; k++) vach.appendChild(document.createElement('i'));
+  const elSo = san.querySelector('[data-so]');
+  new MutationObserver(() => {
+    const n = parseInt(elSo.textContent.replace(/\D*(\d+).*/, '$1'), 10);
+    if (!n) return;
+    [...vach.children].forEach((i, k) => {
+      i.className = k + 1 === n ? 'nay' : k + 1 < n ? 'qua' : '';
+    });
+  }).observe(elSo, { childList: true, characterData: true, subtree: true });
+
+  chay(san, m.g);
+});
+
+const g = (k, v) => document.documentElement.style.setProperty(k, v);
+function matMau(m) {
+  for (const [k, v] of Object.entries({ '--nen': m?.nen ?? '#0b0b0d', '--muc': m?.muc ?? '#f0eee9',
+    '--mo': m?.mo ?? '#8b8984', '--ke': m?.ke ?? '#1e1e21', '--sac': m?.sac ?? '#c9a227' })) g(k, v);
+}
+
+function mo(khoa) {
+  const m = GAME.find((x) => x.khoa === khoa);
+  chiMuc.style.display = 'none';
+  document.body.classList.add('dang-choi');
+  for (const s of document.querySelectorAll('.san')) s.classList.toggle('dang-choi', s.dataset.san === khoa);
+  matMau(m);
+  location.hash = khoa;
+  scrollTo(0, 0);
+  document.querySelector(`[data-san="${khoa}"] canvas`)?.focus?.();
+}
+function dong() {
+  chiMuc.style.display = '';
+  document.body.classList.remove('dang-choi');
+  for (const s of document.querySelectorAll('.san')) s.classList.remove('dang-choi');
+  matMau(null);
+  location.hash = '';
+  scrollTo(0, 0);
+}
+document.getElementById('ve-chi-muc').addEventListener('click', dong);
+addEventListener('keydown', (e) => { if (e.key === 'Escape' && document.body.classList.contains('dang-choi')) dong(); });
+
+requestAnimationFrame(vongClip);
+const dau = location.hash.slice(1);
+if (GAME.some((m) => m.khoa === dau)) mo(dau);
+</script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+{
+  "name": "bon-co-che",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Bốn game giải đố nhỏ, mỗi game một luật chơi và một thế giới riêng",
+  "type": "module",
+  "scripts": {
+    "dev": "npx -y serve -l 4192 .",
+    "kiem": "node scripts/kiem-man.mjs",
+    "tim-man": "node scripts/tim-man.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
