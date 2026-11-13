@@ -1,7 +1,7 @@
 // HỐ SỤT — bạn không điều khiển nhân vật, bạn điều khiển cái hố.
 // Hố chỉ nuốt được thứ không to hơn nó. Nuốt đủ thì hố rộng ra. Dọn sạch bãi.
 // Thế giới: sa mạc, cát, đá — thứ rơi xuống hố thì ai cũng biết là mất.
-import { laTuong, tamO, oTron, kep, lerp, muot, nhieu, bongMem, toiGoc, khoi, SANG } from '../nen.js';
+import { laTuong, tamO, oTron, kep, lerp, muot, nhieu, bongMem, toiGoc, khoi, SANG, anh } from '../nen.js';
 import { MAN } from '../man.js';
 
 const TROI = '#241910', CAT = [214, 186, 140], DA = [96, 76, 54];
@@ -172,6 +172,8 @@ function ve(ctx, man, tt, g, phu) {
   }
 }
 
+const TRANH = { 3: 'assets/sprite/xuong-rong.webp' };
+
 const toiHon = (hex, k) => {
   const n = parseInt(hex.slice(1), 16);
   const r = Math.round(((n >> 16) & 255) * k), g = Math.round(((n >> 8) & 255) * k), b = Math.round((n & 255) * k);
@@ -205,8 +207,12 @@ function veVat(ctx, px, py, o, co, mo) {
     khoi(ctx, px - s * .82, py - s * .8, s * 1.64, s * 1.5, day, mau, canh, s * .26);
     ctx.fillStyle = 'rgba(70,40,18,.42)';
     ctx.fillRect(px - s * .82, py - s * .2, s * 1.64, s * .24);
+  } else if (anh(TRANH[co])) {
+    // tranh vẽ thật, nếu đã tải xong
+    const t = anh(TRANH[co]), k = s * 2.5;
+    ctx.drawImage(t, px - k / 2, py - k * .56, k, k);
   } else {
-    // bụi xương rồng: thân đứng, hai tay, một bên đón sáng
+    // bản dự phòng vẽ bằng code — dùng khi ảnh chưa tải xong hoặc thiếu tệp
     const than = (x, y, w, h, r) => {
       oTron(ctx, x - SANG.x * day * .5, y + day, w, h, r); ctx.fillStyle = canh; ctx.fill();
       oTron(ctx, x, y, w, h, r); ctx.fillStyle = mau; ctx.fill();

@@ -120,6 +120,20 @@ export function nhanVat(ctx, x, y, r, { nhin = [0, 1], ep = 0, than = '#f2f7fd',
   ctx.restore();
 }
 
+// Kho ảnh sprite. Trả null khi chưa tải xong để game vẽ bản dự phòng bằng code —
+// không bao giờ có khoảng trống, và chạy được cả khi thiếu tệp ảnh.
+// Chỉ gọi trong ve(); Node (bộ kiểm) không có Image và cũng không bao giờ vẽ.
+const khoAnh = new Map();
+export function anh(duong) {
+  if (!khoAnh.has(duong)) {
+    const i = new Image();
+    i.src = duong;
+    khoAnh.set(duong, i);
+  }
+  const i = khoAnh.get(duong);
+  return i.complete && i.naturalWidth ? i : null;
+}
+
 // bóng đổ mềm — thứ duy nhất tạo được cảm giác vật nằm TRÊN mặt sàn
 export function bongMem(ctx, x, y, r, dam = .34) {
   const t = ctx.createRadialGradient(x, y, 0, x, y, r);
