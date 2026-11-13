@@ -1,7 +1,9 @@
 // CUỘN PHIM — mỗi HÀNG là một khung hình, tức một khoảnh khắc.
 // Trái/phải: đi trong không gian. Lên/xuống: đi trong thời gian.
 // Rời một khung thì để lại bản thân cũ đứng đó, và nó chắn đường bạn.
-import { laTuong, tamO, oTron, kep, lerp, muot, nhieu, bongMem, toiGoc, nhanVat } from '../nen.js';
+import { laTuong, tamO, oTron, kep, lerp, muot, nhieu, bongMem, toiGoc, nhanVat, anh } from '../nen.js';
+
+const TRANH_NOI = 'assets/sprite/vet-noi.svg';
 import { MAN } from '../man.js';
 
 const NEN = '#090b10', KHUNG = '#2d3845';
@@ -12,7 +14,7 @@ const daBan = new WeakSet();
 
 function batDau(man) {
   const [x, y] = man.lay('@')[0];
-  return { x, y, ma: new Set(), lay: new Set(), luc: 0, doiKhung: false };
+  return { x, y, ma: new Set(), lay: new Set(), daCat: new Set(), luc: 0, doiKhung: false, vuaCat: false };
 }
 
 function buoc(man, tt, huong) {
@@ -28,9 +30,21 @@ function buoc(man, tt, huong) {
   const lay = new Set(tt.lay);
   if (man.lay('o').some(([ax, ay]) => ax === nx && ay === ny)) lay.add(`${nx},${ny}`);
 
+  // Vết nối: bước lên là CẮT khoảnh khắc đó khỏi cuộn phim — mọi bản thân cũ
+  // trong khung hình ấy biến mất. Đối trọng với luật bóng ma vĩnh viễn, nhưng
+  // dùng một lần rồi hết, nên vẫn phải tính thứ tự.
+  const daCat = new Set(tt.daCat);
+  const o = `${nx},${ny}`;
+  let vuaCat = false;
+  if (man.lay('s').some(([ax, ay]) => ax === nx && ay === ny) && !daCat.has(o)) {
+    daCat.add(o);
+    vuaCat = true;
+    for (const k of [...ma]) if (Number(k.split(',')[1]) === ny) ma.delete(k);
+  }
+
   const cua = man.lay('X')[0];
   const thang = nx === cua[0] && ny === cua[1] && lay.size === man.lay('o').length;
-  return { tt: { x: nx, y: ny, ma, lay, luc: performance.now(), doiKhung: dy !== 0 }, thang };
+  return { tt: { x: nx, y: ny, ma, lay, daCat, luc: performance.now(), doiKhung: dy !== 0, vuaCat }, thang };
 }
 
 // Dải phim vẽ một lần rồi giữ lại: thớ nhũ tương, bụi, xước dọc.
@@ -116,6 +130,20 @@ function ve(ctx, man, tt, g, phu) {
     ctx.beginPath(); ctx.arc(px, py, g.o * .15 * nhip, 0, 7); ctx.fill();
   }
 
+  for (const [x, y] of man.lay('s')) {
+    if (tt.daCat.has(`${x},${y}`)) continue;
+    const [px, py] = tamO(g, x, y);
+    const t = anh(TRANH_NOI);
+    if (t) {
+      const k = g.o * .92;
+      ctx.drawImage(t, px - k / 2, py - k / 2, k, k);
+    } else {
+      ctx.fillStyle = 'rgba(227,173,87,.85)';
+      oTron(ctx, px - g.o * .22, py - g.o * .4, g.o * .44, g.o * .8, g.o * .06);
+      ctx.fill();
+    }
+  }
+
   const [cx, cy] = man.lay('X')[0];
   const du = tt.lay.size === man.lay('o').length;
   const [dpx, dpy] = tamO(g, cx, cy);
@@ -171,7 +199,7 @@ function ve(ctx, man, tt, g, phu) {
 
 export default {
   ten: 'Cuộn Phim',
-  goi: 'Mỗi hàng là một khoảnh khắc. ← → đi trong không gian, ↑ ↓ đi trong thời gian. Rời một khung là để lại bản thân cũ chắn chỗ đó.',
+  goi: 'Mỗi hàng là một khoảnh khắc. ← → đi trong không gian, ↑ ↓ đi trong thời gian. Rời một khung là để lại bản thân cũ chắn chỗ đó. Bước lên vết nối phim là cắt bỏ cả khoảnh khắc ấy — mọi bản thân cũ trong hàng đó biến mất, nhưng chỉ cắt được một lần.',
   tyLe: .78,
   mau: { chinh: NGUOI, nen: NEN, phu: DAU },
   batDau, buoc, ve,

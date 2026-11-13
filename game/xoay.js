@@ -6,6 +6,7 @@ import { laTuong, tamO, oTron, kep, muot, lerp, nhieu, bongMem, toiGoc, khoi, nh
 const TRANH_KIEN = 'assets/sprite/kien-hang.webp';
 const TRANH_NAP = 'assets/sprite/nap-ham.webp';
 const TRANH_HOM = 'assets/sprite/hom.webp';
+const TRANH_DINH = 'assets/sprite/kien-dinh.svg';
 import { MAN } from '../man.js';
 
 const GO = '#8a6240', GO_TOI = '#5c3f28', DAI = '#b9873f';
@@ -23,6 +24,7 @@ function batDau(man) {
   for (const [x, y] of man.lay('o')) vat.push({ id: id++, loai: 'kien', x, y });
   for (const [x, y] of man.lay('v')) vat.push({ id: id++, loai: 'devo', x, y });
   for (const [x, y] of man.lay('h')) vat.push({ id: id++, loai: 'hom', x, y });
+  for (const [x, y] of man.lay('d')) vat.push({ id: id++, loai: 'dinh', x, y });
   const [nx, ny] = man.lay('@')[0];
   vat.push({ id: id++, loai: 'nguoi', x: nx, y: ny });
   const tt = { n, tuong: new Set(man.tuong), vat, nap: man.lay('X')[0].slice(), luc: 0, quay: 0, huong: 0 };
@@ -36,6 +38,7 @@ function roi(tt) {
   for (let vong = 0; vong < tt.n * 2; vong++) {
     let doi = false;
     for (const v of [...tt.vat].sort((a, b) => b.y - a.y)) {
+      if (v.loai === 'dinh') continue;   // bắt đinh vào thùng: quay theo, nhưng không rơi
       const duoi = `${v.x},${v.y + 1}`;
       const chiem = new Set(tt.vat.filter((k) => k !== v).map((k) => `${k.x},${k.y}`));
       if (v.y + 1 < tt.n && !tt.tuong.has(duoi) && !chiem.has(duoi)) { v.y++; doi = true; }
@@ -234,6 +237,14 @@ function ve(ctx, man, tt, g, phu) {
       ctx.moveTo(px - g.o * .16, py - g.o * .28); ctx.lineTo(px - g.o * .02, py - g.o * .04);
       ctx.lineTo(px - g.o * .13, py + g.o * .1); ctx.lineTo(px + g.o * .04, py + g.o * .28);
       ctx.stroke();
+    } else if (v.loai === 'dinh') {
+      const t = anh(TRANH_DINH);
+      if (t) {
+        const k = g.o * .88;
+        ctx.drawImage(t, px - k / 2, py - k / 2, k, k);
+      } else {
+        khoi(ctx, px - g.o * .33, py - g.o * .33, g.o * .66, g.o * .66, g.o * .06, '#664e32', '#39414d', g.o * .07);
+      }
     } else if (v.loai === 'hom') {
       bongMem(ctx, px, py + g.o * .36, g.o * .44, .5);
       const t = anh(TRANH_HOM);
@@ -285,7 +296,7 @@ function veVanGo(c, W, H) {
 
 export default {
   ten: 'Thùng Hàng',
-  goi: '← → đi bộ; chạm kiện hàng thì trèo lên. Đẩy vào thành thùng là cả thùng nghiêng, mọi thứ rơi theo chiều "dưới" mới. Kiện nhạt màu rơi quá 3 ô là vỡ, và hòm nặng đè lên là vỡ ngay. Đưa người xuống nắp hầm.',
+  goi: '← → đi bộ; chạm kiện hàng thì trèo lên. Đẩy vào thành thùng là cả thùng nghiêng, mọi thứ rơi theo chiều "dưới" mới. Kiện nhạt màu rơi quá 3 ô là vỡ, hòm nặng đè lên là vỡ ngay. Kiện bắt đinh thì quay theo thùng mà không rơi. Đưa người xuống nắp hầm.',
   tyLe: .92,
   mau: { chinh: DAI, nen: NEN, phu: KIEN },
   batDau, buoc, ve,
