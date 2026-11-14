@@ -8,10 +8,15 @@ riêng để **nhìn là hiểu luật, không cần đọc hướng dẫn**.
 | 01 | Hố Sụt | Bạn là cái hố. Chỉ nuốt được thứ không to hơn mình; nuốt đủ thì hố rộng ra | Donut County, Hole.io |
 | 02 | Cuộn Phim | Mỗi hàng là một khoảnh khắc. Ngang là không gian, dọc là thời gian | chưa thấy ai làm |
 | 03 | Thùng Hàng | Nghiêng cả thùng 90°, mọi thứ rơi theo chiều "dưới" mới | Turnabout (PS1, 2000) |
-| 04 | Tia Sét | Một phím điều khiển mọi tia; chạm ngạnh chữ Y là tách làm đôi | chưa thấy ai làm |
+| 04 | Tia Sét | Một phím điều khiển mọi tia; ngạnh chữ Y chẻ tia ra, cọc thu lôi nuốt tia đi | chưa thấy ai làm |
 
-Không một tệp ảnh, không một tệp âm thanh, không thư viện ngoài. Cát, vân gỗ, thớ
-nhũ tương phim, tia điện — tất cả sinh bằng code lúc chạy. Toàn bộ ~57 KB.
+Không một tệp âm thanh, không thư viện ngoài. Cát, vân gỗ, thớ nhũ tương phim,
+trời bão, tia điện và nhân vật — tất cả sinh bằng code lúc chạy; riêng Hố Sụt và
+Thùng Hàng có thêm ít sprite `.webp` cho đồ vật trên bàn.
+
+Bốn game nhưng **một nhân vật**: cùng một sinh vật, nhận ra nhờ cái chỏm trên
+đầu, hai con mắt nhìn theo hướng vừa đi và đôi lông mày biết lo. Ở Tia Sét nó
+chính là tia — chẻ đôi là nó thành hai đứa.
 
 ## Chạy tại máy
 
@@ -35,8 +40,30 @@ Vẽ màn bằng tay là không đáng tin — lần đầu 5/16 màn bị bí. 
 dò, nó tự ghi đè `man.js`:
 
 ```bash
-npm run tim-man
+npm run tim-man          # cả 4 game
+node scripts/tim-man.mjs tachDoi   # một game thôi
+THU=30000 npm run tim-man          # quét kỹ hơn, lâu hơn
 ```
+
+### Độ khó đo bằng gì
+
+Không đo bằng số nước đi: một màn 25 nước có thể là 25 nước hiển nhiên trong một
+hành lang. Thước đo thật là **then chốt** — số chỗ trên lời giải mà MỌI nước đi
+hiển nhiên đều dẫn tới thua. Mỗi chỗ như vậy là một lần người chơi buộc phải
+dừng lại nghĩ.
+
+"Hiển nhiên" là gì thì mỗi game một khác, nên mỗi game có một kẻ chơi tham riêng
+trong `scripts/nguoi-tham.mjs`: ở Hố Sụt nó luôn ăn thứ gần nhất ăn được, ở Tia
+Sét nó luôn lùa tia về phía chấu chưa phủ. Màn nào kẻ đó thắng được là màn đó
+chưa phải câu đố.
+
+```bash
+node scripts/nguoi-tham.mjs tachDoi   # in bảng then-chốt của bộ màn hiện tại
+```
+
+Màn sinh ra theo **bậc**: bàn to dần, vật nhiều dần, và mỗi bậc chỉ thêm MỘT thứ
+mới. Trong từng bậc, màn được chọn sao cho điểm khó không bao giờ tụt so với màn
+trước — nếu không thì đường cong độ khó răng cưa, màn 4 khó hơn màn 9.
 
 ## Cấu trúc
 

@@ -6,7 +6,7 @@ import { writeFileSync } from 'node:fs';
 import { MAN as MAN_CU } from '../man.js';
 import { docMan } from '../nen.js';
 import { giai, diLai, docDoHoc } from './giai.mjs';
-import { doKho } from './nguoi-tham.mjs';
+import { doKho, doKhoTia } from './nguoi-tham.mjs';
 import lo from '../game/lo.js';
 import thoiGian from '../game/thoi-gian.js';
 import xoay from '../game/xoay.js';
@@ -131,14 +131,79 @@ const VIEC = [
   },
   {
     khoa: 'tachDoi', game: tachDoi,
-    day: ['#######', '#@...X#', '#######'],
-    khung: [
-      ['#######', '#.....#', '#.....#', '#.....#', '#######'],
-      ['########', '#......#', '#......#', '#......#', '########'],
-      ['#######', '#.....#', '#.....#', '#.....#', '#.....#', '#######'],
+    // Bốn màn dạy, mỗi màn MỘT luật mới, và không màn nào dài hơn mức cần để
+    // thấy luật đó. Ngạnh với cọc đi liền nhau vì chúng là một cặp: cái làm
+    // tia nhiều lên, cái làm tia ít đi. Hiểu cặp đó là hiểu cả game.
+    dayDs: [
+      ['#######', '#@...X#', '#######'],                               // một phím, mọi tia
+      ['#######', '#...X.#', '#@..Y.#', '#...X.#', '#######'],         // ngạnh chẻ đôi
+      ['#######', '#...T.#', '#@..Y.#', '#...X.#', '#######'],         // cọc nuốt tia thừa
+      ['########', '#....X.#', '#......#', '#@...G.#', '########'],    // gương bẻ 90 độ
     ],
-    dat: { '@': 1, 'Y': 2, 'X': 3, 'G': 2, 'B': 2, '#': 3 }, min: 5, max: 24,
+    // Bốn bậc: bàn to dần, chấu nhiều dần, nên số tia phải gom đúng cũng tăng.
+    // Ngạnh luôn nhiều hơn chấu để còn đường chẻ dư rồi vứt bớt vào cọc —
+    // chẻ vừa đủ thì không có gì để tính.
+    bac: [
+      { so: 4, khung: [
+        ['########', '#......#', '#......#', '#......#', '########'],
+        ['#######', '#.....#', '#.....#', '#.....#', '#.....#', '#######'],
+      // Bậc 1 KHÔNG có cọc: chỉ luyện chẻ và bẻ gương cho quen tay, y như Hố Sụt
+      // để dành chum tới bậc 2. Thêm cọc ngay từ đầu thì người chơi phải cân ba
+      // thứ cùng lúc trong khi còn chưa chắc tay với cái thứ nhất.
+      ], dat: [
+        { '@': 1, 'X': 2, 'Y': 2, 'G': 1, 'B': 1, '#': 2 },
+        { '@': 1, 'X': 2, 'Y': 3, 'G': 1, 'B': 1, '#': 2 },
+        { '@': 1, 'X': 2, 'Y': 2, 'G': 2, 'B': 1, '#': 3 },
+      ], min: 5, max: 16 },
+      { so: 5, khung: [
+        ['########', '#......#', '#......#', '#......#', '#......#', '########'],
+        ['#########', '#.......#', '#.......#', '#.......#', '#########'],
+      ], dat: [
+        { '@': 1, 'X': 3, 'Y': 3, 'G': 1, 'B': 1, 'T': 1, '#': 2 },
+        { '@': 1, 'X': 3, 'Y': 4, 'G': 2, 'B': 1, 'T': 1, '#': 3 },
+        { '@': 1, 'X': 3, 'Y': 3, 'G': 2, 'B': 2, '#': 3 },
+      ], min: 7, max: 24 },
+      { so: 4, khung: [
+        ['#########', '#.......#', '#.......#', '#.......#', '#.......#', '#########'],
+        ['##########', '#........#', '#........#', '#........#', '#........#', '##########'],
+      ], dat: [
+        { '@': 1, 'X': 3, 'Y': 4, 'G': 2, 'B': 2, 'T': 1, '#': 4 },
+        { '@': 1, 'X': 4, 'Y': 4, 'G': 2, 'B': 1, 'T': 2, '#': 3 },
+        { '@': 1, 'X': 3, 'Y': 4, 'G': 3, 'B': 2, 'T': 2, '#': 4 },
+      ], min: 9, max: 28 },
+      { so: 3, khung: [
+        ['##########', '#........#', '#........#', '#........#', '#........#', '##########'],
+        ['#########', '#.......#', '#.......#', '#.......#', '#.......#', '#.......#', '#########'],
+      ], dat: [
+        { '@': 1, 'X': 4, 'Y': 5, 'G': 2, 'B': 2, 'T': 2, '#': 4 },
+        { '@': 1, 'X': 4, 'Y': 5, 'G': 3, 'B': 2, 'T': 2, '#': 5 },
+        { '@': 1, 'X': 3, 'Y': 5, 'G': 3, 'B': 3, 'T': 2, '#': 5 },
+      ], min: 11, max: 32 },
+    ],
+    // Độ khó = số chỗ MỌI nước hiển nhiên đều sai. Bắt buộc ≥ 1: bộ màn cũ có
+    // 13/20 màn bằng 0, tức là lùa tia về phía chấu là xong, không phải câu đố.
+    doKho: (man, hoc) => {
+      const d = doKhoTia(man, hoc);
+      // Ở Hố Sụt, tỉ lệ kẻ tham thắng chạy từ 0 tới 53% nên nó phân loại tốt.
+      // Ở đây kẻ lùa tia gần như không bao giờ thắng — đo ra 0% ở cả 20 màn cũ —
+      // nên nó vô dụng làm thước. Dùng hai vế khác:
+      //   thenChot  chỗ mọi nước hiển nhiên đều sai      (hóc tới đâu)
+      //   chet      phần trạng thái đã hết đường thắng   (dễ làm hỏng tới đâu)
+      // Lấy cả hai vì chúng bắt hai kiểu khó khác nhau, và riêng thenChot thì
+      // chỉ nhận giá trị 0/1/2 — đo trên bàn lớn ra quá ít ứng viên để chọn.
+      return {
+        ...d, chet: hoc.chet,
+        diem: d.thenChot + hoc.chet + hoc.duong.length / 30,
+        dat: d.thenChot >= 1 || hoc.chet >= .25,
+      };
+    },
     dac: (c) => Math.max(...c.map((t) => t.tia.length)) >= 2,   // thật sự chẻ ra
+    // Cọc phải được DÙNG trong lời giải ngắn nhất, không thì nó là đồ trang trí.
+    // Đã thử điều kiện chặt hơn — "bỏ cọc đi là bí" như chum của Hố Sụt — nhưng
+    // đo ra chỉ 1.3% ứng viên đạt, không đủ màn để chọn. Ở Hố Sụt chum chỉ chỉnh
+    // cỡ hố nên dễ thành thiết yếu; ở đây bỏ một cọc thì thường vẫn còn đường
+    // gom tia kiểu khác. Lấy "có dùng" là mức vừa đủ để cọc có việc thật.
+    canVatPhu: (o, chuoi) => !o.join('').includes('T') || chuoi.some((t) => t.hut?.length),
   },
 ];
 
@@ -166,48 +231,57 @@ function doTheoBac(v) {
       if (!kq.duong || kq.duong.length < b.min || kq.duong.length > b.max) continue;
       const lai = diLai(v.game, man, kq.duong);
       if (!lai.thang || !v.dac(lai.chuoi)) continue;
-      if (v.canVatPhu && !v.canVatPhu(o)) continue;
+      if (v.canVatPhu && !v.canVatPhu(o, lai.chuoi)) continue;
       const hoc = docDoHoc(v.game, man, 150000);
       if (!hoc.duong) continue;
       const d = v.doKho(man, hoc);
       if (!d.dat) continue;
-      tim.push({ o, kh, di, nuoc: kq.duong.length, bay: hoc.bay, thenChot: d.thenChot, tham: d.tham, diem: d.diem + kq.duong.length / 100 });
+      tim.push({ o, kh, di, nuoc: kq.duong.length, bay: hoc.bay, thenChot: d.thenChot, tham: d.tham, chet: d.chet, diem: d.diem + kq.duong.length / 100 });
     }
     console.log(`  bậc ${ib + 1}: thử ${thu}, đạt ${tim.length}`);
     ungVien.push(tim);
   }
 
-  // Độ khó phải TĂNG ĐỀU qua cả game, không răng cưa mỗi đầu bậc. Đặt mốc
-  // khó cho từng màn, rồi trong bậc của màn đó lấy ứng viên gần mốc nhất mà
-  // không dễ hơn màn trước.
-  const tatCa = ungVien.flat().map((c) => c.diem);
-  const thap = Math.min(...tatCa), cao = Math.max(...tatCa);
-  const bacCua = v.bac.flatMap((b, ib) => Array(b.so).fill(ib));   // màn thứ i thuộc bậc nào
-  const tong = bacCua.length;
+  // Trong mỗi bậc: sắp ứng viên theo điểm khó rồi lấy đều từ đầu tới cuối, lấy
+  // theo THỨ HẠNG chứ không theo mốc điểm.
+  //
+  // Bản trước đặt mốc điểm trên thang chung của cả game. Nhưng tới bậc 2 trở đi
+  // thì mốc đã vượt quá điểm của MỌI ứng viên trong bậc, nên lần nào thuật toán
+  // cũng chọn con khó nhất còn lại — và độ khó trong bậc đi GIẢM dần. Đo trên
+  // Tia Sét ra: bậc 2 được 3 2 1 1 2, bậc 3 được 6 3 2 2, bậc 4 được 11 5 5.
+  // Mỗi bậc mở màn bằng chính màn khó nhất của nó. Lấy theo thứ hạng thì đường
+  // cong không bao giờ tụt trong một bậc, và con lệch đàn cũng tự nằm ở cuối.
   const chon = [];
-  let truoc = -Infinity;
-  for (let i = 0; i < tong; i++) {
-    const tim = ungVien[bacCua[i]];
-    const moc = thap + ((cao - thap) * i) / Math.max(1, tong - 1);
-    // Không lặp: màn liền trước dùng khung nào, bộ vật nào thì màn này tránh cả hai.
-    // Trước đây ba màn liền nhau cùng một bộ vật nên chơi thấy y chang nhau.
-    const sat = chon[chon.length - 1];
-    const khac = (c) => !sat || (c.kh !== sat.kh && c.di !== sat.di);
-    const conLai = tim.filter((c) => !chon.includes(c));
-    const loc = [
-      conLai.filter((c) => khac(c) && c.diem >= truoc),
-      conLai.filter((c) => khac(c)),
-      conLai.filter((c) => c.diem >= truoc),
-      conLai,
-    ];
-    const tu = loc.find((l) => l.length) ?? [];
-    if (!tu.length) continue;
-    const c = tu.reduce((a, b2) => (Math.abs(b2.diem - moc) < Math.abs(a.diem - moc) ? b2 : a));
-    chon.push(c);
-    c.bac = bacCua[i];
-    truoc = c.diem;
+  for (const [ib, b] of v.bac.entries()) {
+    const sap = [...ungVien[ib]].sort((a, b2) => a.diem - b2.diem);
+    if (!sap.length) continue;
+    let sauCung = 0;                       // chỉ lấy tiến lên, không lùi lại
+    for (let j = 0; j < b.so; j++) {
+      // Bậc sau bỏ qua 25% ứng viên dễ nhất của nó. Bậc nào cũng quét từ 0 thì
+      // mỗi lần lên bậc độ khó lại tụt hẳn xuống đáy — bàn to hơn thật, nhưng
+      // người chơi vừa qua một màn hóc lại gặp ngay một màn dễ hơn cả màn đầu.
+      const dau = ib === 0 ? 0 : .25;
+      const phan = b.so > 1 ? dau + (1 - dau) * (j / (b.so - 1)) : (1 + dau) / 2;
+      const goc = Math.max(Math.round(phan * (sap.length - 1)), sauCung);
+      if (goc >= sap.length) break;        // bậc này hết ứng viên
+      // Không lặp: màn liền trước dùng khung nào, bộ vật nào thì màn này tránh
+      // cả hai. Nhưng chỉ dò quanh thứ hạng lý tưởng trong BÁN KÍNH HẸP: dò xa
+      // thì một màn nhảy lên hạng cao, các màn sau buộc phải cao hơn nữa, và
+      // bậc hết ứng viên trước khi lấy đủ. Đó là lý do lần chạy trước chỉ ra
+      // 14 màn trên 16.
+      const sat = chon[chon.length - 1];
+      const hop = (k) => k >= sauCung && k < sap.length
+        && (!sat || (sap[k].kh !== sat.kh && sap[k].di !== sat.di));
+      const banKinh = Math.max(1, Math.round(sap.length / (b.so * 2)));
+      let lay = hop(goc) ? goc : -1;
+      for (let d = 1; d <= banKinh && lay < 0; d++)
+        for (const k of [goc - d, goc + d]) if (hop(k)) { lay = k; break; }
+      if (lay < 0) lay = goc;              // không có bản khác kiểu thì cứ lấy đúng thứ hạng
+      sap[lay].bac = ib;
+      chon.push(sap[lay]);
+      sauCung = lay + 1;
+    }
   }
-  // Giữ nguyên thứ tự đã chọn: sắp lại theo điểm sẽ đặt các màn giống nhau cạnh nhau.
   return chon;
 }
 
@@ -218,7 +292,9 @@ for (const v of VIEC) {
     const chon = doTheoBac(v);
     ra[v.khoa] = { dayDs: v.dayDs, chon };
     console.log(`  then chốt:  ${chon.map((c) => c.thenChot).join(' ')}`);
-    console.log(`  tham thắng: ${chon.map((c) => Math.round(c.tham * 100)).join(' ')}`);
+    if (chon.some((c) => c.chet !== undefined))
+      console.log(`  chết %:     ${chon.map((c) => Math.round((c.chet ?? 0) * 100)).join(' ')}`);
+    else console.log(`  tham thắng: ${chon.map((c) => Math.round(c.tham * 100)).join(' ')}`);
     console.log(`  nước:       ${chon.map((c) => c.nuoc).join(' ')}`);
     continue;
   }
@@ -283,7 +359,9 @@ const than = Object.entries(ra).map(([khoa, m]) => {
     for (const c of m.chon) {
       const ghi = c.thenChot === undefined
         ? `${c.nuoc} nước · ${c.bay} bẫy`
-        : `${c.nuoc} nước · ${c.thenChot} then chốt · tham thắng ${Math.round(c.tham * 100)}%`;
+        : c.chet !== undefined
+          ? `${c.nuoc} nước · ${c.thenChot} then chốt · chết ${Math.round(c.chet * 100)}%`
+          : `${c.nuoc} nước · ${c.thenChot} then chốt · tham thắng ${Math.round(c.tham * 100)}%`;
       dong.push(`    { o: ${JSON.stringify(c.o)} },   // ${ghi}`);
     }
   }

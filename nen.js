@@ -15,7 +15,7 @@ export const CHUYEN_MS = 150;
 
 // Khoá trạng thái: dùng chung cho bộ giải (scripts/giai.mjs) và cho trang chơi
 // dò "đã bí chưa". Bỏ các trường chỉ phục vụ hoạt ảnh — chúng không đổi luật.
-const BO_KHOA = new Set(['luc', 'quay', 'vuaNuot', 'noAt', 'truoc', 'huong', 'doiKhung', 'vuaCat', 'kieu']);
+const BO_KHOA = new Set(['luc', 'quay', 'vuaNuot', 'noAt', 'hut', 'nhap', 'truoc', 'huong', 'doiKhung', 'vuaCat', 'kieu']);
 const ssKhoa = (a, b) => (JSON.stringify(a) < JSON.stringify(b) ? -1 : 1);
 function chuanKhoa(v) {
   if (v instanceof Set) return [...v].map(chuanKhoa).sort(ssKhoa);
@@ -108,9 +108,24 @@ export function khoi(ctx, px, py, w, h, day, tren, canh, r = 4) {
   ctx.restore();
 }
 
-// Nhân vật: thân + MẮT nhìn theo hướng vừa đi, biết nháy, biết bẹp khi tiếp đất.
-// Hai con mắt là khác biệt giữa "một chấm tròn" và "một sinh vật".
-export function nhanVat(ctx, x, y, r, { nhin = [0, 1], ep = 0, than = '#f2f7fd', toi = 'rgba(10,12,18,.82)', nay = 0, mam = 0 } = {}) {
+// ── MASCOT CHUNG CHO CẢ BỐN GAME ────────────────────────────────────────────
+// MỘT sinh vật, bốn thế giới. Nhận ra nó nhờ ba thứ, xếp theo đúng thứ tự quan
+// trọng:
+//   chỏm trên đầu — cái BÓNG. Bỏ chỏm đi thì nó về làm một chấm tròn như mọi
+//                   game lưới khác, và bốn game không còn cảm giác cùng một bộ.
+//   hai con mắt   — sự sống. Nhìn theo hướng vừa đi, biết nháy.
+//   đôi lông mày  — cảm xúc. Hai nét thôi, nhưng là thứ nói cho người chơi biết
+//                   nó đang gắng, đang lo hay vừa thắng, mà không cần một chữ nào.
+//
+// cam : 'thuong' | 'gang' | 'lo' | 'vui'   chỉ đổi lông mày (và miệng khi vui)
+// vien: màu viền sáng — BẮT BUỘC trên nền tối, không có thì thân chìm vào nền
+// hao : màu quầng sáng quanh thân, cho thế giới điện
+// chom: tắt khi nhân vật nằm trong chỗ chật (trong hố, dưới trần thấp)
+const MAU_DO = [0, 1];
+export function nhanVat(ctx, x, y, r, {
+  nhin = MAU_DO, ep = 0, than = '#f2f7fd', toi = 'rgba(10,12,18,.82)',
+  nay = 0, mam = 0, cam = 'thuong', vien = null, hao = null, chom = true,
+} = {}) {
   const [nx, ny] = nhin;
   const d = Math.hypot(nx, ny) || 1;
   const lx = (nx / d), ly = (ny / d);
@@ -118,6 +133,33 @@ export function nhanVat(ctx, x, y, r, { nhin = [0, 1], ep = 0, than = '#f2f7fd',
   ctx.save();
   ctx.translate(x, y + r * ep * .55);
   ctx.scale(1 + ep * .3, 1 - ep * .3);
+
+  if (hao) {
+    const q = ctx.createRadialGradient(0, 0, r * .3, 0, 0, r * 2.2);
+    q.addColorStop(0, hao);
+    q.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = q;
+    ctx.beginPath(); ctx.arc(0, 0, r * 2.2, 0, 7); ctx.fill();
+  }
+
+  // Chỏm ngả NGƯỢC chiều đang đi — như tóc bị gió thổi khi chạy. Nhờ nó mà
+  // nhìn cái bóng là biết nhân vật vừa đi hướng nào, chưa cần nhìn tới mắt.
+  if (chom) {
+    const gx = -lx * r * .66, gy = -ly * r * .38;
+    ctx.fillStyle = than;
+    ctx.beginPath();
+    ctx.moveTo(-r * .34, -r * .64);
+    ctx.quadraticCurveTo(-r * .22 + gx * .55, -r * 1.2 + gy * .8, gx, -r * 1.52 + gy);
+    ctx.quadraticCurveTo(r * .26 + gx * .45, -r * 1.06 + gy * .8, r * .34, -r * .64);
+    ctx.closePath();
+    ctx.fill();
+    if (vien) {
+      ctx.strokeStyle = vien;
+      ctx.lineWidth = Math.max(1, r * .08);
+      ctx.lineJoin = 'round';
+      ctx.stroke();
+    }
+  }
 
   ctx.fillStyle = than;
   ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.fill();
@@ -128,14 +170,20 @@ export function nhanVat(ctx, x, y, r, { nhin = [0, 1], ep = 0, than = '#f2f7fd',
   t.addColorStop(1, 'rgba(0,0,0,.26)');
   ctx.fillStyle = t;
   ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.fill();
+  if (vien) {
+    ctx.strokeStyle = vien;
+    ctx.lineWidth = Math.max(1, r * .09);
+    ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.stroke();
+  }
 
   // nháy mắt: ~90ms mỗi ~3.4s, lệch pha theo mầm để nhiều nhân vật không nháy cùng lúc
   const chu = 3400 + (mam % 7) * 260;
   const nhay = ((nay + mam * 719) % chu) < 95;
   const cachMat = r * .36, caoMat = r * .1;
+  const txm = lx * r * .3, tym = ly * r * .3 - caoMat;     // tâm giữa hai mắt
   for (const ben of [-1, 1]) {
-    const mx = lx * r * .3 - ly * cachMat * ben;
-    const my = ly * r * .3 + lx * cachMat * ben - caoMat;
+    const mx = txm - ly * cachMat * ben;
+    const my = tym + lx * cachMat * ben;
     if (nhay) {
       ctx.strokeStyle = toi;
       ctx.lineWidth = Math.max(1.2, r * .11);
@@ -149,8 +197,35 @@ export function nhanVat(ctx, x, y, r, { nhin = [0, 1], ep = 0, than = '#f2f7fd',
       ctx.fillStyle = 'rgba(255,255,255,.9)';
       ctx.beginPath(); ctx.arc(mx - r * .055, my - r * .07, r * .055, 0, 7); ctx.fill();
     }
+    if (cam !== 'thuong') veMay(ctx, mx, my, txm, tym, r, cam, toi);
+  }
+  if (cam === 'vui' && !nhay) {
+    ctx.strokeStyle = toi;
+    ctx.lineWidth = Math.max(1.1, r * .08);
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.arc(txm, tym + r * .3, r * .2, .25 * Math.PI, .75 * Math.PI);
+    ctx.stroke();
   }
   ctx.restore();
+}
+
+// "Phía trong" tính bằng hướng từ con mắt về tâm giữa hai mắt, nên lông mày
+// nghiêng đúng kể cả khi nhân vật quay sang ngang hay nhìn lên.
+function veMay(ctx, mx, my, txm, tym, r, cam, toi) {
+  let ix = txm - mx, iy = tym - my;
+  const d = Math.hypot(ix, iy) || 1;
+  ix /= d; iy /= d;
+  const tren = cam === 'vui' ? -r * .54 : -r * .42;
+  const nghieng = cam === 'gang' ? r * .15 : cam === 'lo' ? -r * .15 : 0;
+  const dai = r * .25;
+  ctx.strokeStyle = toi;
+  ctx.lineWidth = Math.max(1.1, r * .085);
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(mx + ix * dai, my + tren + nghieng);
+  ctx.lineTo(mx - ix * dai, my + tren - nghieng);
+  ctx.stroke();
 }
 
 // Kho ảnh sprite. Trả null khi chưa tải xong để game vẽ bản dự phòng bằng code —

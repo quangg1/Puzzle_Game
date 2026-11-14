@@ -6,10 +6,14 @@
 //               Mỗi lần là một chỗ người chơi phải dừng lại nghĩ. Đây là độ khó.
 //   thamThang - tỉ lệ kẻ tham thắng cả màn. Cao = màn chỉ là dọn dẹp.
 //
-// Chạy: node scripts/nguoi-tham.mjs   (in bảng cho bộ màn hiện tại)
+// Mỗi game có một "cách chơi hiển nhiên" riêng, nên mỗi game cần một hàm chọn
+// nước tham riêng; phần đo thì dùng chung (xem doKhoTham ở cuối tệp).
+//
+// Chạy: node scripts/nguoi-tham.mjs [lo|tachDoi]   (in bảng cho bộ màn hiện tại)
 import { docMan, khoa, TEN_HUONG } from '../nen.js';
 import { docDoHoc } from './giai.mjs';
 import lo from '../game/lo.js';
+import tachDoi from '../game/tach-doi.js';
 
 let hat = 7;
 const rnd = () => ((hat = (hat * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
@@ -68,12 +72,88 @@ export function doKho(man, hoc) {
   return { thenChot: demThenChot(man, hoc), tham: tiLeThamThang(man) };
 }
 
+// ── TIA SÉT ─────────────────────────────────────────────────────────────────
+// Cách chơi hiển nhiên ở đây là LÙA TIA VỀ PHÍA CHẤU: nước nào phủ thêm được
+// chấu thì tốt nhất, hoà thì chọn nước kéo tia lại gần chấu chưa phủ.
+// Kẻ chơi kiểu này KHÔNG bao giờ nghĩ tới chuyện phải vứt bớt một tia vào cọc
+// thu lôi, cũng không nghĩ tới việc để dành ngạnh — nên màn nào nó thắng được
+// là màn đó chưa phải câu đố.
+function diemTia(man, tt) {
+  const chau = man.lay('X').map((p) => p.join(','));
+  const co = new Set(tt.tia);
+  let phu = 0, xa = 0;
+  for (const c of chau) {
+    if (co.has(c)) { phu++; continue; }
+    const [cx, cy] = c.split(',').map(Number);
+    let gan = 99;
+    for (const k of tt.tia) {
+      const [x, y] = k.split(',').map(Number);
+      gan = Math.min(gan, Math.abs(x - cx) + Math.abs(y - cy));
+    }
+    xa += gan;
+  }
+  return phu * 1000 - xa;
+}
+
+function nuocThamTia(man, tt) {
+  const ds = [];
+  for (const h of TEN_HUONG) {
+    const kq = tachDoi.buoc(man, tt, h);
+    if (!kq || kq.tt === tt) continue;
+    ds.push(kq);
+  }
+  if (!ds.length) return [];
+  const diem = (kq) => (kq.thang ? Infinity : diemTia(man, kq.tt));
+  const nhat = Math.max(...ds.map(diem));
+  return ds.filter((kq) => diem(kq) === nhat);
+}
+
+// ── phần đo dùng chung ──────────────────────────────────────────────────────
+// thamThang - tỉ lệ kẻ tham thắng cả màn. Cao = màn chỉ là dọn dẹp.
+// thenChot  - số chỗ trên lời giải mà MỌI nước "hiển nhiên" đều làm mất đường
+//             thắng. Mỗi chỗ là một lần người chơi buộc phải dừng lại nghĩ.
+// laQuyetDinh(tt, i) — chỉ đếm then chốt ở những chỗ RA QUYẾT ĐỊNH, không đếm
+// ở mọi nước. Đếm mọi nước thì màn 30 nước tự động điểm gấp ba màn 10 nước dù
+// hai màn hóc như nhau: thành ra lại đo độ dài, đúng thứ đang muốn tránh.
+// Chỗ ra quyết định là chỗ KHÔNG LÙI LẠI ĐƯỢC — ở Hố Sụt là mỗi lần nuốt, ở
+// Tia Sét là mỗi lần ngạnh cháy hoặc cọc nuốt mất một tia.
+export function doKhoTham(game, man, hoc, chonNuoc, laQuyetDinh, lan = 60, tranNuoc = 200) {
+  let thang = 0;
+  for (let i = 0; i < lan; i++) {
+    let tt = game.batDau(man);
+    for (let n = 0; n < tranNuoc; n++) {
+      const ds = chonNuoc(man, tt);
+      if (!ds.length) break;
+      const kq = ds[Math.floor(rnd() * ds.length)];
+      if (kq.thang) { thang++; break; }
+      tt = kq.tt;
+    }
+  }
+  let thenChot = 0;
+  hoc.trangThai.forEach((tt, i) => {
+    if (!laQuyetDinh(tt, i)) return;
+    const ds = chonNuoc(man, tt);
+    if (!ds.length) return;
+    if (!ds.some((kq) => kq.thang || hoc.conDuong.has(khoa(kq.tt)))) thenChot++;
+  });
+  return { thenChot, tham: thang / lan };
+}
+
+export const doKhoTia = (man, hoc) => doKhoTham(
+  tachDoi, man, hoc, nuocThamTia,
+  (tt, i) => i === 0 || tt.noAt?.length || tt.hut?.length,
+);
+
 if (process.argv[1]?.replaceAll('\\', '/').endsWith('scripts/nguoi-tham.mjs')) {
-  console.log('màn  nước  then-chốt  tham-thắng');
-  lo.MAN.forEach((m, i) => {
+  const chon = process.argv[2] ?? 'lo';
+  const game = chon === 'tachDoi' ? tachDoi : lo;
+  const do_ = chon === 'tachDoi' ? doKhoTia : doKho;
+  console.log(`${game.ten}\nmàn  nước  then-chốt  tham-thắng`);
+  game.MAN.forEach((m, i) => {
     const man = docMan(m.o);
-    const hoc = docDoHoc(lo, man);
-    const d = doKho(man, hoc);
+    const hoc = docDoHoc(game, man);
+    if (!hoc.duong) { console.log(`${String(i + 1).padStart(3)}  (không đọc được)`); return; }
+    const d = do_(man, hoc);
     console.log(`${String(i + 1).padStart(3)}  ${String(hoc.duong.length).padStart(4)}  ${String(d.thenChot).padStart(9)}  ${String(Math.round(d.tham * 100)).padStart(9)}%`);
   });
 }
