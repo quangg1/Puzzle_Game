@@ -2,19 +2,9 @@
 // Dùng chính hàm của game nên không thể lệch luật giữa bộ kiểm và trang chơi.
 export const TEN_HUONG = ['len', 'xuong', 'trai', 'phai'];
 
-// Bỏ các trường chỉ phục vụ hoạt ảnh — chúng không đổi luật, giữ lại chỉ làm phình cây.
-const BO = new Set(['luc', 'quay', 'vuaNuot', 'noAt', 'truoc', 'huong']);
-const ss = (a, b) => (JSON.stringify(a) < JSON.stringify(b) ? -1 : 1);
-
-function chuan(v) {
-  if (v instanceof Set) return [...v].map(chuan).sort(ss);
-  if (v instanceof Map) return [...v.entries()].map(([k, x]) => [k, chuan(x)]).sort(ss);
-  if (Array.isArray(v)) return v.map(chuan).sort(ss);   // 4 game này không phụ thuộc thứ tự mảng
-  if (v && typeof v === 'object')
-    return Object.keys(v).filter((k) => !BO.has(k)).sort().map((k) => [k, chuan(v[k])]);
-  return v;
-}
-export const khoa = (tt) => JSON.stringify(chuan(tt));
+// Khoá trạng thái nằm ở nen.js để trang chơi (dò "đã bí") và bộ giải dùng CÙNG một hàm.
+import { khoa } from '../nen.js';
+export { khoa };
 
 export function giai(game, man, capNut = 600000) {
   const dau = game.batDau(man);
@@ -108,7 +98,12 @@ export function docDoHoc(game, man, capNut = 150000) {
     else ngaRe += songKhac;
   });
 
-  return { duong, bay, ngaRe, thatCo, nut: nut.size };
+  // chet: tỉ lệ trạng thái đi tới được mà đã hết đường thắng — "dễ bí tới đâu".
+  // Bắt được bẫy sâu nhiều nước, thứ mà `bay` (chỉ nhìn một nước) bỏ sót.
+  const chet = 1 - conDuong.size / nut.size;
+  // conDuong + trangThai: để thước đo riêng từng game (vd. người chơi tham) dùng lại
+  const trangThai = chuoi.map((kc) => nut.get(kc).tt);
+  return { duong, bay, ngaRe, thatCo, chet, nut: nut.size, conDuong, trangThai };
 }
 
 // Đi lại lời giải, trả về danh sách trạng thái — để kiểm nó thật sự thắng,

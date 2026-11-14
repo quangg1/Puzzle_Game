@@ -13,6 +13,39 @@ export const bat = (t) => { const c = 1.9; return 1 + (c + 1) * (t - 1) ** 3 + c
 
 export const CHUYEN_MS = 150;
 
+// Khoá trạng thái: dùng chung cho bộ giải (scripts/giai.mjs) và cho trang chơi
+// dò "đã bí chưa". Bỏ các trường chỉ phục vụ hoạt ảnh — chúng không đổi luật.
+const BO_KHOA = new Set(['luc', 'quay', 'vuaNuot', 'noAt', 'truoc', 'huong', 'doiKhung', 'vuaCat', 'kieu']);
+const ssKhoa = (a, b) => (JSON.stringify(a) < JSON.stringify(b) ? -1 : 1);
+function chuanKhoa(v) {
+  if (v instanceof Set) return [...v].map(chuanKhoa).sort(ssKhoa);
+  if (v instanceof Map) return [...v.entries()].map(([k, x]) => [k, chuanKhoa(x)]).sort(ssKhoa);
+  if (Array.isArray(v)) return v.map(chuanKhoa).sort(ssKhoa);   // 4 game không phụ thuộc thứ tự mảng
+  if (v && typeof v === 'object')
+    return Object.keys(v).filter((k) => !BO_KHOA.has(k)).sort().map((k) => [k, chuanKhoa(v[k])]);
+  return v;
+}
+export const khoa = (tt) => JSON.stringify(chuanKhoa(tt));
+
+// Từ trạng thái này còn đường thắng không? true / false / null (quá lớn, chưa biết).
+// Có trần nút để không treo trang — màn to thì thà im còn hơn báo sai.
+export function conDuongThang(game, man, tt, capNut = 20000) {
+  const hang = [tt];
+  const daXet = new Set([khoa(tt)]);
+  for (let i = 0; i < hang.length; i++)
+    for (const h of TEN_HUONG) {
+      const kq = game.buoc(man, hang[i], h);
+      if (!kq || kq.tt === hang[i]) continue;
+      if (kq.thang) return true;
+      const k = khoa(kq.tt);
+      if (daXet.has(k)) continue;
+      if (daXet.size >= capNut) return null;
+      daXet.add(k);
+      hang.push(kq.tt);
+    }
+  return false;
+}
+
 // có cả trong Node (bộ kiểm import luật game), nên phải dò trước khi gọi
 const itDong = typeof matchMedia === 'function'
   && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -318,7 +351,7 @@ export function chay(hop, game) {
     if (xong) { moMan(soMan + 1); return; }
     const kq = game.buoc(man, tt, huong);
     if (!kq) return;
-    if (kq.tt === tt) { bao(kq.bao ?? '', kq.loai ?? ''); rung(.5); ve(); return; }
+    if (kq.tt === tt) { bao(kq.bao ?? '', kq.loai ?? ''); rung(.5); doBi(); ve(); return; }
     lichSu.push(tt);
     huongCuoi = huong;
     chuyen(tt);
@@ -327,8 +360,19 @@ export function chay(hop, game) {
     if (kq.thang) {
       xong = true;
       bao(soMan + 1 < game.MAN.length ? 'Qua màn — bấm phím bất kỳ' : 'Hết màn — bấm phím bất kỳ', 'thang');
-    }
+    } else doBi();
     ve();
+  }
+
+  // Dò sau khi vẽ xong nước vừa đi, để phím không bị khựng. Trạng thái đã đổi
+  // trong lúc chờ thì bỏ — kết quả cũ không còn đúng.
+  function doBi() {
+    const dang = tt;
+    setTimeout(() => {
+      if (tt !== dang || xong) return;
+      if (conDuongThang(game, man, dang) === false)
+        bao('Bí rồi: không còn đường thắng. Lùi (Z) hoặc chơi lại (R).', 'ket');
+    }, 0);
   }
 
   function lui() {
@@ -336,6 +380,7 @@ export function chay(hop, game) {
     chuyen(tt);
     tt = lichSu.pop();
     bao('');
+    doBi();
     ve();
   }
 

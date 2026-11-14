@@ -10,11 +10,15 @@ const VAT = ['#aab6c0', '#c88d55', '#6fa263'];   // cỡ 1 sỏi · 2 thùng · 
 const BUI_CAT = '#d8bd8e';
 
 const daBan = new WeakSet();        // trạng thái nào đã bắn bụi rồi thì thôi
-const banKinh = (co) => .22 + (co - 1) * .14;   // dùng chung cho hố và vòng "cần cỡ này"
+// Hố to dần nhưng KHÔNG tràn ra ô bên cạnh — tràn thì người chơi không biết hố đang ở ô nào.
+const banKinh = (co) => Math.min(.44, .2 + (co - 1) * .08);
 
 function batDau(man) {
   const vat = [];
-  ['1', '2', '3'].forEach((c, i) => man.lay(c).forEach(([x, y]) => vat.push({ x, y, co: i + 1 })));
+  // kieu: chỉ để vẽ — các vật cùng cỡ lần lượt mang kiểu khác nhau, đỡ lặp hình
+  // Lệch theo từng màn: không có nó thì màn nào cũng "sỏi, sọ, lon, thùng, hộp" y hệt.
+  const lech = [...man.dong.join('')].reduce((t, c, i) => (t + c.charCodeAt(0) * (i + 1)) % 997, 0);
+  ['1', '2', '3'].forEach((c, i) => man.lay(c).forEach(([x, y], k) => vat.push({ x, y, co: i + 1, kieu: k + lech })));
   for (const [x, y] of man.lay('c')) vat.push({ x, y, co: 1, chum: true });
   const [x, y] = man.lay('@')[0];
   return { x, y, vat, nuot: 0, luc: 0, vuaNuot: null };
@@ -36,11 +40,12 @@ function buoc(man, tt, huong) {
   const nx = tt.x + dx, ny = tt.y + dy;
   if (laTuong(man, nx, ny)) return null;
 
-  if (soLoi(man, nx, ny) < coHo(tt))
-    return { tt, bao: 'Hố rộng quá, không lách qua chỗ hẹp đó.', loai: 'ket' };
+  const loi = soLoi(man, nx, ny), co = coHo(tt);
+  if (loi < co)
+    return { tt, bao: `Hố cỡ ${co} cần ô thoáng ${co} mặt. Ô đó chỉ thoáng ${loi} mặt.`, loai: 'ket' };
 
   const v = tt.vat.find((k) => k.x === nx && k.y === ny);
-  if (v && v.co > coHo(tt)) return { tt, bao: 'Hố còn bé hơn thứ đó.', loai: 'ket' };
+  if (v && v.co > co) return { tt, bao: `Hố mới cỡ ${co}, thứ đó cỡ ${v.co}.`, loai: 'ket' };
 
   const vat = v ? tt.vat.filter((k) => k !== v) : tt.vat;
   // Chum nước làm hố NHỎ LẠI một cỡ — đối trọng với luật hố chỉ to lên.
@@ -119,11 +124,18 @@ function ve(ctx, man, tt, g, phu) {
   ctx.fillRect(-20, -20, phu.W + 40, phu.H + 40);
   ctx.drawImage(phu.van(man.dong.join('|'), phu.W, phu.H, (c, W, H) => veNen(c, W, H, man, g)), 0, 0);
 
-  tt.vat.forEach((v, i) => {
+  const co = coHo(tt);
+  veVungCam(ctx, man, g, co);
+
+  // vẽ hàng trên trước: cây cao ló lên phải đè lên ô phía sau nó, không bị ô sau đè
+  tt.vat.map((v, i) => [v, i]).sort((a, b) => a[0].y - b[0].y).forEach(([v, i]) => {
     const [px, py] = tamO(g, v.x, v.y);
     const vao = muot(kep((phu.vaoMan - i * .055) / .55, 0, 1));
     if (vao <= 0) return;
-    veVat(ctx, px, py - (1 - vao) * g.o * 1.5, g.o, v.co, vao, v.chum);
+    // Ăn được NGAY thì sáng; quá to hoặc nằm trong ô hố không vào nổi thì mờ.
+    const anDuoc = v.co <= co && soLoi(man, v.x, v.y) >= co;
+    veVat(ctx, px, py - (1 - vao) * g.o * 1.5, g.o, v.co, vao * (anDuoc ? 1 : .55), v.chum, v.kieu);
+    veNhan(ctx, px, py - (1 - vao) * g.o * 1.5, g.o, v, anDuoc, vao);
   });
 
   // vật vừa bị nuốt: chìm xuống, xoay nhẹ, kèm bụi cát
@@ -140,7 +152,7 @@ function ve(ctx, man, tt, g, phu) {
       ctx.translate(px, py + g.o * .3 * muot(t));
       ctx.rotate(muot(t) * .5);
       ctx.scale(1 - muot(t) * .6, 1 - muot(t) * .6);
-      veVat(ctx, 0, 0, g.o, tt.vuaNuot.co, 1 - muot(t) * .8, tt.vuaNuot.chum);
+      veVat(ctx, 0, 0, g.o, tt.vuaNuot.co, 1 - muot(t) * .8, tt.vuaNuot.chum, tt.vuaNuot.kieu);
       ctx.restore();
     }
   }
@@ -162,6 +174,16 @@ function ve(ctx, man, tt, g, phu) {
   sau.addColorStop(0, 'rgba(96,66,34,.45)'); sau.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = sau;
   ctx.beginPath(); ctx.ellipse(hx, hy, r, r * .9, 0, 0, 7); ctx.fill();
+
+  // Vành tiến độ quanh miệng hố: nửa vòng sáng = đã ăn 1/2 thứ để lớn thêm.
+  ctx.lineWidth = Math.max(2, g.o * .05);
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = 'rgba(40,26,12,.45)';
+  ctx.beginPath(); ctx.ellipse(hx, hy, r * 1.36, r * 1.24, 0, 0, 7); ctx.stroke();
+  if (tt.nuot % 2) {
+    ctx.strokeStyle = SAC_HUD;
+    ctx.beginPath(); ctx.ellipse(hx, hy, r * 1.36, r * 1.24, 0, -Math.PI / 2, Math.PI / 2); ctx.stroke();
+  }
 
   // Hai con mắt nhìn ra từ trong tối. Đây là thứ biến "một lỗ đen" thành
   // "một con gì đó đang ăn" — và là chi tiết người chơi nhớ nhất.
@@ -187,14 +209,83 @@ function ve(ctx, man, tt, g, phu) {
       ctx.beginPath(); ctx.ellipse(mx + lx * r * .045, my + ly * r * .045, r * .07, r * .1, 0, 0, 7); ctx.fill();
     }
   }
+
+  veHud(ctx, g, tt);
 }
 
-// Mỗi tranh một tỉ lệ riêng: hòn đá phải nhỏ hơn bụi xương rồng dù cùng ô.
-const TRANH = {
-  1: ['assets/sprite/soi.webp', 1.5],
-  2: ['assets/sprite/thung.webp', 1.9],
-  3: ['assets/sprite/xuong-rong.webp', 2.5],
-  chum: ['assets/sprite/chum.webp', 1.8],
+const SAC_HUD = '#f2c46d';
+
+// Ô hố KHÔNG vào được với cỡ hiện tại: tối hẳn, gạch chéo.
+// Ô sẽ cấm khi hố lớn thêm một cỡ: gạch chéo mờ — để người chơi thấy trước cái bẫy.
+function veVungCam(ctx, man, g, co) {
+  for (let y = 0; y < man.cao; y++)
+    for (let x = 0; x < man.rong; x++) {
+      if (laTuong(man, x, y)) continue;
+      const l = soLoi(man, x, y);
+      const camNay = l < co, camSau = !camNay && l < co + 1;
+      if (!camNay && !camSau) continue;
+      const px = g.x0 + x * g.o, py = g.y0 + y * g.o;
+      ctx.save();
+      ctx.beginPath(); ctx.rect(px + 1, py + 1, g.o - 2, g.o - 2); ctx.clip();
+      if (camNay) { ctx.fillStyle = 'rgba(38,24,12,.5)'; ctx.fillRect(px, py, g.o, g.o); }
+      ctx.strokeStyle = camNay ? 'rgba(20,12,6,.5)' : 'rgba(120,70,30,.28)';
+      ctx.lineWidth = Math.max(1.5, g.o * (camNay ? .045 : .03));
+      ctx.beginPath();
+      for (let k = -g.o; k < g.o * 2; k += g.o * .22) { ctx.moveTo(px + k, py); ctx.lineTo(px + k - g.o, py + g.o); }
+      ctx.stroke();
+      ctx.restore();
+    }
+}
+
+// Số cỡ trên mỗi vật. Sáng = ăn được ngay; tối = chưa. Chum ghi "−1" (bớt một cỡ).
+function veNhan(ctx, px, py, o, v, anDuoc, mo) {
+  const r = Math.max(8, o * .15);
+  const x = px + o * .3, y = py + o * .28;
+  ctx.globalAlpha = mo;
+  ctx.fillStyle = v.chum ? '#3d7fb8' : anDuoc ? '#f6ead2' : '#3a2a1a';
+  ctx.strokeStyle = v.chum ? '#bfe0ff' : anDuoc ? '#5a3d1e' : '#7a6248';
+  ctx.lineWidth = Math.max(1.2, o * .025);
+  ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = v.chum ? '#fff' : anDuoc ? '#3a250f' : '#9c8468';
+  ctx.font = `700 ${Math.round(r * 1.25)}px system-ui, sans-serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(v.chum ? '−1' : String(v.co), x, y + r * .06);
+  ctx.globalAlpha = 1;
+}
+
+// Bảng cỡ hố ở hàng tường trên cùng: "HỐ CỠ 2  ●○".
+function veHud(ctx, g, tt) {
+  const co = coHo(tt);
+  const h = Math.max(20, g.o * .42), cx = g.x0 + g.o * .25, cy = g.y0 + g.o * .5;
+  ctx.font = `700 ${Math.round(h * .55)}px system-ui, sans-serif`;
+  const chu = `HỐ CỠ ${co}`;
+  const w = ctx.measureText(chu).width + h * 2.4;
+  ctx.fillStyle = 'rgba(20,12,6,.82)';
+  oTron(ctx, cx, cy - h / 2, w, h, h / 2); ctx.fill();
+  ctx.fillStyle = SAC_HUD;
+  ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  ctx.fillText(chu, cx + h * .45, cy + 1);
+  for (let k = 0; k < 2; k++) {
+    const dx = cx + w - h * (1.45 - k * .6), dr = h * .17;
+    ctx.beginPath(); ctx.arc(dx, cy, dr, 0, 7);
+    if (k < tt.nuot % 2) { ctx.fillStyle = SAC_HUD; ctx.fill(); }
+    else { ctx.strokeStyle = SAC_HUD; ctx.lineWidth = 1.5; ctx.stroke(); }
+  }
+}
+
+// Ba kiểu cho mỗi cỡ, cho bãi đỡ lặp. Kiểu chọn theo vị trí nên màn nào
+// cũng trông y như lần trước. CỠ TO PHẢI TRÔNG TO: nhìn là biết thứ nào nặng ký,
+// chưa cần đọc số. Cỡ 3 cao hơn một ô, ló lên ô trên — như cây thật đứng trên bãi.
+const KIEU = {
+  1: ['c1-soi', 'c1-so', 'c1-lon'],
+  2: ['c2-thung', 'c2-hop', 'c2-banh'],
+  3: ['c3-xuong-rong', 'c3-da', 'c3-cay-kho'],
+  chum: ['chum'],
+};
+const CAO = { 1: .58, 2: .9, 3: 1.32, chum: .84 };    // chiều cao tranh, tính theo ô
+const tranhCua = (co, chum, kieu = 0) => {
+  const ds = KIEU[chum ? 'chum' : co];
+  return `assets/sprite/lo/${ds[kieu % ds.length]}.webp`;
 };
 
 const toiHon = (hex, k) => {
@@ -203,32 +294,23 @@ const toiHon = (hex, k) => {
   return `rgb(${r},${g},${b})`;
 };
 
-function veVat(ctx, px, py, o, co, mo, chum) {
+function veVat(ctx, px, py, o, co, mo, chum, kieu = 0) {
   ctx.globalAlpha = mo;
   const s = o * (chum ? .3 : .2 + co * .1);
-  const khoaTranh = chum ? 'chum' : co;
-  const t = TRANH[khoaTranh] && anh(TRANH[khoaTranh][0]);
-  if (t) {
-    const k = o * TRANH[khoaTranh][1] * .42;
-    bongMem(ctx, px, py + k * .4, k * .42, .4);
-    ctx.drawImage(t, px - k / 2, py - k * .58, k, k);
-    ctx.setLineDash([o * .07, o * .07]);
-    ctx.strokeStyle = `rgba(58,36,16,${.4 * mo})`;
-    ctx.lineWidth = Math.max(1.2, o * .035);
-    ctx.beginPath(); ctx.arc(px, py, o * banKinh(co), 0, 7); ctx.stroke();
-    ctx.setLineDash([]);
+  const t = anh(tranhCua(co, chum, kieu));
+  if (t && t.width) {
+    // giữ đúng tỉ lệ ảnh; chân vật đặt ở đáy ô, phần cao ló lên trên
+    let h = o * CAO[chum ? 'chum' : co], w = h * t.width / t.height;
+    const rongMax = o * (co === 3 ? 1.08 : .92);
+    if (w > rongMax) { h *= rongMax / w; w = rongMax; }
+    const day = py + o * .36;
+    bongMem(ctx, px, day - o * .03, w * .42, .38);
+    ctx.drawImage(t, px - w / 2, day - h, w, h);
     ctx.globalAlpha = 1;
     return;
   }
   const day = s * (.22 + co * .1);
   bongMem(ctx, px - SANG.x * day, py + s * .66 + day * .4, s * 1.35, .42);
-
-  // vòng nét đứt = hố phải to tới đây mới nuốt nổi. So hai vòng tròn là hiểu luật.
-  ctx.setLineDash([o * .07, o * .07]);
-  ctx.strokeStyle = `rgba(58,36,16,${.44 * mo})`;
-  ctx.lineWidth = Math.max(1.2, o * .035);
-  ctx.beginPath(); ctx.arc(px, py, o * banKinh(co), 0, 7); ctx.stroke();
-  ctx.setLineDash([]);
 
   const mau = VAT[co - 1], canh = toiHon(mau, .56);
   if (co === 1) {
@@ -263,7 +345,7 @@ function veVat(ctx, px, py, o, co, mo, chum) {
 
 export default {
   ten: 'Hố Sụt',
-  goi: 'Bạn là cái hố. Chỉ nuốt được thứ không to hơn mình, nuốt đủ thì hố rộng ra — mà hố rộng thì hết lách qua chỗ hẹp. Nuốt chum nước để nhỏ lại một cỡ. Dọn sạch bãi.',
+  goi: 'Bạn là cái hố. Chỉ nuốt được thứ không to hơn mình, nuốt 2 thứ thì hố to thêm một cỡ. Hố cỡ N chỉ vào được ô thoáng N mặt. Chum nước làm hố nhỏ lại. Dọn sạch bãi.',
   tyLe: .62,
   mau: { chinh: '#d9bb8a', nen: TROI, phu: VAT[2] },
   batDau, buoc, ve,
