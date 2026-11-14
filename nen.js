@@ -15,7 +15,11 @@ export const CHUYEN_MS = 150;
 
 // Khoá trạng thái: dùng chung cho bộ giải (scripts/giai.mjs) và cho trang chơi
 // dò "đã bí chưa". Bỏ các trường chỉ phục vụ hoạt ảnh — chúng không đổi luật.
-const BO_KHOA = new Set(['luc', 'quay', 'vuaNuot', 'noAt', 'hut', 'nhap', 'truoc', 'huong', 'doiKhung', 'vuaCat', 'kieu']);
+// 'vo' (kiện vừa vỡ) và 'buoc' (vừa đi sang bên nào) chỉ để vẽ, nhưng trước
+// đây lọt vào khoá: bộ giải coi "tới ô này sau khi đi bộ" khác với "tới ô này
+// sau khi nghiêng thùng", nhân đôi không gian trạng thái của Thùng Hàng mà
+// không thêm một nước đi nào.
+const BO_KHOA = new Set(['luc', 'quay', 'vuaNuot', 'noAt', 'hut', 'nhap', 'truoc', 'huong', 'doiKhung', 'vuaCat', 'kieu', 'vo', 'buoc']);
 const ssKhoa = (a, b) => (JSON.stringify(a) < JSON.stringify(b) ? -1 : 1);
 function chuanKhoa(v) {
   if (v instanceof Set) return [...v].map(chuanKhoa).sort(ssKhoa);

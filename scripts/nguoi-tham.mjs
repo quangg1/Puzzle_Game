@@ -9,12 +9,13 @@
 // Mỗi game có một "cách chơi hiển nhiên" riêng, nên mỗi game cần một hàm chọn
 // nước tham riêng; phần đo thì dùng chung (xem doKhoTham ở cuối tệp).
 //
-// Chạy: node scripts/nguoi-tham.mjs [lo|tachDoi|thoiGian]   (in bảng cho bộ màn hiện tại)
+// Chạy: node scripts/nguoi-tham.mjs [lo|tachDoi|thoiGian|xoay]   (in bảng cho bộ màn hiện tại)
 import { docMan, khoa, TEN_HUONG } from '../nen.js';
 import { docDoHoc } from './giai.mjs';
 import lo from '../game/lo.js';
 import tachDoi from '../game/tach-doi.js';
 import thoiGian from '../game/thoi-gian.js';
+import xoay from '../game/xoay.js';
 
 let hat = 7;
 const rnd = () => ((hat = (hat * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
@@ -138,6 +139,31 @@ function nuocThamPhim(man, tt) {
   return ds.filter((kq) => diem(kq) === nhat);
 }
 
+
+// ── THÙNG HÀNG ──────────────────────────────────────────────────────────────
+// Cách chơi hiển nhiên: ĐI VỀ PHÍA NẮP HẦM. Thấy nắp ở bên phải thì bấm phải,
+// chạm thành thùng thì thùng nghiêng, rồi lại bấm về phía nắp. Kẻ chơi kiểu
+// này không bao giờ nghĩ tới chuyện nghiêng thùng để XẾP LẠI hàng hoá thành
+// bậc thang, cũng không nghĩ cú rơi nào làm vỡ kiện nào.
+function diemThung(man, tt) {
+  const ng = tt.vat.find((v) => v.loai === 'nguoi');
+  if (!ng) return -1e9;
+  return -(Math.abs(ng.x - tt.nap[0]) + Math.abs(ng.y - tt.nap[1]));
+}
+
+function nuocThamThung(man, tt) {
+  const ds = [];
+  for (const h of TEN_HUONG) {
+    const kq = xoay.buoc(man, tt, h);
+    if (!kq || kq.tt === tt) continue;
+    ds.push(kq);
+  }
+  if (!ds.length) return [];
+  const diem = (kq) => (kq.thang ? Infinity : diemThung(man, kq.tt));
+  const nhat = Math.max(...ds.map(diem));
+  return ds.filter((kq) => diem(kq) === nhat);
+}
+
 // ── phần đo dùng chung ──────────────────────────────────────────────────────
 // thamThang - tỉ lệ kẻ tham thắng cả màn. Cao = màn chỉ là dọn dẹp.
 // thenChot  - số chỗ trên lời giải mà MỌI nước "hiển nhiên" đều làm mất đường
@@ -181,10 +207,17 @@ export const doKhoPhim = (man, hoc) => doKhoTham(
   (tt, i) => i === 0 || tt.doiKhung || tt.vuaCat,
 );
 
+// Chỗ không lùi lại được ở Thùng Hàng: mỗi cú nghiêng (hàng rơi xuống chỗ mới,
+// nghiêng ngược lại KHÔNG đưa chúng về chỗ cũ) và mỗi lần có kiện vỡ.
+export const doKhoThung = (man, hoc) => doKhoTham(
+  xoay, man, hoc, nuocThamThung,
+  (tt, i) => i === 0 || tt.quay || tt.vo?.length,
+);
+
 if (process.argv[1]?.replaceAll('\\', '/').endsWith('scripts/nguoi-tham.mjs')) {
   const chon = process.argv[2] ?? 'lo';
-  const game = { lo, tachDoi, thoiGian }[chon] ?? lo;
-  const do_ = { lo: doKho, tachDoi: doKhoTia, thoiGian: doKhoPhim }[chon] ?? doKho;
+  const game = { lo, tachDoi, thoiGian, xoay }[chon] ?? lo;
+  const do_ = { lo: doKho, tachDoi: doKhoTia, thoiGian: doKhoPhim, xoay: doKhoThung }[chon] ?? doKho;
   console.log(`${game.ten}\nmàn  nước  then-chốt  tham-thắng`);
   game.MAN.forEach((m, i) => {
     const man = docMan(m.o);

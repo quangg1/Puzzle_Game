@@ -6,7 +6,7 @@ import { writeFileSync } from 'node:fs';
 import { MAN as MAN_CU } from '../man.js';
 import { docMan } from '../nen.js';
 import { giai, diLai, docDoHoc } from './giai.mjs';
-import { doKho, doKhoTia, doKhoPhim } from './nguoi-tham.mjs';
+import { doKho, doKhoTia, doKhoPhim, doKhoThung } from './nguoi-tham.mjs';
 import lo from '../game/lo.js';
 import thoiGian from '../game/thoi-gian.js';
 import xoay from '../game/xoay.js';
@@ -98,7 +98,14 @@ const VIEC = [
     // Mọi màn dò ra phải buộc người chơi nghĩ: có then chốt, hoặc kẻ tham thua quá nửa.
     doKho: (man, hoc) => {
       const d = doKho(man, hoc);
-      return { ...d, diem: d.thenChot + (1 - d.tham), dat: d.thenChot >= 1 || d.tham < .5 };
+      // Thêm độ dài làm vế phụ, như ba game kia. Trước đây điểm chỉ là then
+      // chốt cộng tỉ lệ tham, mà then chốt là số nguyên nhỏ nên rất nhiều màn
+      // bằng điểm nhau; lúc đó thứ tự lấy gần như ngẫu nhiên.
+      return {
+        ...d, chet: hoc.chet,
+        diem: d.thenChot + (1 - d.tham) + hoc.duong.length / 30,
+        dat: d.thenChot >= 1 || d.tham < .5,
+      };
     },
     dac: (c) => Math.max(...c.map((t) => t.nuot)) >= 3,     // hố buộc phải lớn lên
     // Chum phải BẮT BUỘC: bỏ hết chum đi mà vẫn giải được thì chum chỉ là đồ trang trí.
@@ -172,13 +179,56 @@ const VIEC = [
   },
   {
     khoa: 'xoay', game: xoay,
-    day: ['......', '......', '......', '......', '......', '@....X'],
-    // BẮT BUỘC vuông, nếu không phép quay 90° không còn khớp lưới
-    khung: [
-      ['......', '......', '......', '......', '......', '......'],
-      ['.......', '.......', '.......', '.......', '.......', '.......', '.......'],
+    // Ba màn dạy: đi bộ → đẩy vào thành thùng là cả thùng nghiêng → chạm kiện
+    // thì trèo lên. Màn 2 chỉ cần bấm một phím sáu lần, nên cú nghiêng hiện ra
+    // không lẫn vào đâu được.
+    dayDs: [
+      ['......', '......', '......', '......', '......', '@....X'],
+      ['X.....', '......', '......', '......', '......', '@.....'],
+      ['......', '......', '......', '......', '......', '@o...X'],
     ],
-    dat: { '@': 1, 'X': 1, 'o': 2, 'v': 3, 'h': 2, 'd': 2, '#': 4 }, min: 6, max: 28,
+    // BẮT BUỘC vuông, nếu không phép quay 90° không còn khớp lưới.
+    // Bậc 1 chưa có kiện dễ vỡ lẫn kiện bắt đinh: chỉ luyện nghiêng và trèo.
+    bac: [
+      { so: 5, khung: [
+        ['.....', '.....', '.....', '.....', '.....'],
+        ['......', '......', '......', '......', '......', '......'],
+      ], dat: [
+        { '@': 1, 'X': 1, 'o': 2, '#': 2 },
+        { '@': 1, 'X': 1, 'o': 3, '#': 3 },
+        { '@': 1, 'X': 1, 'o': 2, 'h': 1, '#': 2 },
+      ], min: 5, max: 14 },
+      { so: 5, khung: [
+        ['......', '......', '......', '......', '......', '......'],
+      ], dat: [
+        { '@': 1, 'X': 1, 'o': 2, 'v': 2, 'h': 1, '#': 3 },
+        { '@': 1, 'X': 1, 'o': 3, 'v': 2, '#': 4 },
+        { '@': 1, 'X': 1, 'o': 2, 'v': 1, 'h': 1, 'd': 1, '#': 3 },
+      ], min: 8, max: 20 },
+      { so: 4, khung: [
+        ['......', '......', '......', '......', '......', '......'],
+        ['.......', '.......', '.......', '.......', '.......', '.......', '.......'],
+      ], dat: [
+        { '@': 1, 'X': 1, 'o': 2, 'v': 3, 'h': 2, 'd': 2, '#': 4 },
+        { '@': 1, 'X': 1, 'o': 3, 'v': 2, 'h': 1, 'd': 2, '#': 5 },
+        { '@': 1, 'X': 1, 'o': 2, 'v': 3, 'h': 1, 'd': 1, '#': 4 },
+      ], min: 10, max: 26 },
+      { so: 3, khung: [
+        ['.......', '.......', '.......', '.......', '.......', '.......', '.......'],
+      ], dat: [
+        { '@': 1, 'X': 1, 'o': 3, 'v': 3, 'h': 2, 'd': 3, '#': 5 },
+        { '@': 1, 'X': 1, 'o': 2, 'v': 4, 'h': 2, 'd': 2, '#': 6 },
+        { '@': 1, 'X': 1, 'o': 3, 'v': 4, 'h': 2, 'd': 2, '#': 5 },
+      ], min: 13, max: 32 },
+    ],
+    doKho: (man, hoc) => {
+      const d = doKhoThung(man, hoc);
+      return {
+        ...d, chet: hoc.chet,
+        diem: d.thenChot + (1 - d.tham) + hoc.duong.length / 30,
+        dat: d.thenChot >= 1 || d.tham <= .25,
+      };
+    },
     // phải có ít nhất một cú NGHIÊNG, không thì ra toàn màn đi bộ là xong
     dac: (c) => c.some((t) => t.quay),
   },
