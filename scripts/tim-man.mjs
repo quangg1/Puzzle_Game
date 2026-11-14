@@ -205,21 +205,23 @@ const VIEC = [
         { '@': 1, 'X': 1, 'o': 3, 'v': 2, '#': 4 },
         { '@': 1, 'X': 1, 'o': 2, 'v': 1, 'h': 1, 'd': 1, '#': 3 },
       ], min: 8, max: 20 },
+      // Chỉ 6×6. Để lẫn khung 7×7 vào đây thì lời giải của nó gần như luôn dài
+      // quá khoảng cho phép của bậc: đo ra 3 ứng viên trên 5000 lần thử, không
+      // đủ lấy 4 màn. Bàn 7×7 để dành hẳn cho bậc 4.
       { so: 4, khung: [
         ['......', '......', '......', '......', '......', '......'],
-        ['.......', '.......', '.......', '.......', '.......', '.......', '.......'],
       ], dat: [
         { '@': 1, 'X': 1, 'o': 2, 'v': 3, 'h': 2, 'd': 2, '#': 4 },
         { '@': 1, 'X': 1, 'o': 3, 'v': 2, 'h': 1, 'd': 2, '#': 5 },
         { '@': 1, 'X': 1, 'o': 2, 'v': 3, 'h': 1, 'd': 1, '#': 4 },
-      ], min: 10, max: 26 },
+      ], min: 9, max: 30 },
       { so: 3, khung: [
         ['.......', '.......', '.......', '.......', '.......', '.......', '.......'],
       ], dat: [
         { '@': 1, 'X': 1, 'o': 3, 'v': 3, 'h': 2, 'd': 3, '#': 5 },
         { '@': 1, 'X': 1, 'o': 2, 'v': 4, 'h': 2, 'd': 2, '#': 6 },
         { '@': 1, 'X': 1, 'o': 3, 'v': 4, 'h': 2, 'd': 2, '#': 5 },
-      ], min: 13, max: 32 },
+      ], min: 12, max: 36 },
     ],
     doKho: (man, hoc) => {
       const d = doKhoThung(man, hoc);
@@ -231,6 +233,15 @@ const VIEC = [
     },
     // phải có ít nhất một cú NGHIÊNG, không thì ra toàn màn đi bộ là xong
     dac: (c) => c.some((t) => t.quay),
+    // Đặt kiện bắt đinh thì lời giải phải THẬT SỰ BẬT nó ra. Không có ràng
+    // buộc này thì phần lớn kiện bắt đinh chỉ nằm đó làm vật cản — mà vật cản
+    // thì đã có tường rồi, và người chơi tốn công phân biệt hai thứ như một.
+    // Đo ra 3 trên 8 ứng viên hợp lệ của bậc 3 có bật đinh, đủ để chọn.
+    canVatPhu: (o, chuoi) => {
+      if (!o.join('').includes('d')) return true;
+      const dem = (t) => t.vat.filter((v) => v.loai === 'dinh').length;
+      return chuoi.some((t) => dem(t) < dem(chuoi[0]));
+    },
   },
   {
     khoa: 'tachDoi', game: tachDoi,
@@ -372,9 +383,12 @@ function doTheoBac(v) {
       // thì một màn nhảy lên hạng cao, các màn sau buộc phải cao hơn nữa, và
       // bậc hết ứng viên trước khi lấy đủ. Đó là lý do lần chạy trước chỉ ra
       // 14 màn trên 16.
+      // Bậc chỉ có MỘT khung thì đòi khác khung là đòi điều không thể, và luật
+      // tránh lặp chết hẳn — lúc đó mấy màn liền nhau lại dùng chung bộ vật.
+      // Nên chỉ đòi khác khung khi bậc có từ hai khung trở lên.
       const sat = chon[chon.length - 1];
       const hop = (k) => k >= sauCung && k < sap.length
-        && (!sat || (sap[k].kh !== sat.kh && sap[k].di !== sat.di));
+        && (!sat || (sap[k].di !== sat.di && (b.khung.length < 2 || sap[k].kh !== sat.kh)));
       const banKinh = Math.max(1, Math.round(sap.length / (b.so * 2)));
       let lay = hop(goc) ? goc : -1;
       for (let d = 1; d <= banKinh && lay < 0; d++)
