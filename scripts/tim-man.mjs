@@ -6,7 +6,7 @@ import { writeFileSync } from 'node:fs';
 import { MAN as MAN_CU } from '../man.js';
 import { docMan } from '../nen.js';
 import { giai, diLai, docDoHoc } from './giai.mjs';
-import { doKho, doKhoTia } from './nguoi-tham.mjs';
+import { doKho, doKhoTia, doKhoPhim } from './nguoi-tham.mjs';
 import lo from '../game/lo.js';
 import thoiGian from '../game/thoi-gian.js';
 import xoay from '../game/xoay.js';
@@ -107,15 +107,68 @@ const VIEC = [
   },
   {
     khoa: 'thoiGian', game: thoiGian,
-    day: ['#######', '#@...o#', '#.....#', '#X....#', '#######'],
-    khung: [
-      ['#######', '#.....#', '#.....#', '#.....#', '#.....#', '#######'],
-      ['########', '#......#', '#......#', '#......#', '#......#', '########'],
-      ['#######', '#.....#', '#.....#', '#.....#', '#.....#', '#.....#', '#######'],
+    // Ba màn dạy, mỗi màn một luật: hàng là khoảnh khắc → bản thân cũ chắn
+    // đường → vết nối cắt bỏ cả khoảnh khắc.
+    // Màn 1 và màn 2 cố ý CÙNG MỘT BÀN, chỉ khác đúng một viên tường ở giữa.
+    // Màn 1 đi kiểu gì cũng thắng; thêm viên tường vào là thứ tự bỗng thành
+    // vấn đề, vì xuống sớm là tự bịt mất lối về. Dạy luật bằng cách đặt hai
+    // bàn gần giống nhau cạnh nhau, không cần một chữ hướng dẫn nào.
+    dayDs: [
+      ['#####', '#@.o#', '#...#', '#X..#', '#####'],
+      ['#####', '#@.o#', '#.#.#', '#X..#', '#####'],
+      ['#######', '#@..X.#', '##.#s##', '#..o..#', '#######'],
     ],
-    dat: { '@': 1, 'X': 1, 'o': 4, 's': 2, '#': 6 }, min: 9, max: 32,
+    // Bậc 1 KHÔNG có vết nối: chỉ luyện "đổi khung là để lại mình cũ" cho quen,
+    // y như Hố Sụt để dành chum và Tia Sét để dành cọc tới bậc 2.
+    bac: [
+      { so: 5, khung: [
+        ['#######', '#.....#', '#.....#', '#.....#', '#######'],
+        ['#######', '#.....#', '#.....#', '#.....#', '#.....#', '#######'],
+      ], dat: [
+        { '@': 1, 'X': 1, 'o': 2, '#': 4 },
+        { '@': 1, 'X': 1, 'o': 3, '#': 3 },
+        { '@': 1, 'X': 1, 'o': 2, '#': 5 },
+      ], min: 7, max: 18 },
+      { so: 5, khung: [
+        ['########', '#......#', '#......#', '#......#', '#......#', '########'],
+        ['#######', '#.....#', '#.....#', '#.....#', '#.....#', '#######'],
+      ], dat: [
+        { '@': 1, 'X': 1, 'o': 3, 's': 1, '#': 5 },
+        { '@': 1, 'X': 1, 'o': 3, 's': 2, '#': 4 },
+        { '@': 1, 'X': 1, 'o': 4, '#': 5 },
+      ], min: 10, max: 24 },
+      { so: 4, khung: [
+        ['########', '#......#', '#......#', '#......#', '#......#', '########'],
+        ['#######', '#.....#', '#.....#', '#.....#', '#.....#', '#.....#', '#######'],
+      ], dat: [
+        { '@': 1, 'X': 1, 'o': 4, 's': 2, '#': 6 },
+        { '@': 1, 'X': 1, 'o': 4, 's': 1, '#': 7 },
+        { '@': 1, 'X': 1, 'o': 5, 's': 2, '#': 5 },
+      ], min: 12, max: 28 },
+      { so: 3, khung: [
+        ['########', '#......#', '#......#', '#......#', '#......#', '#......#', '########'],
+        ['#########', '#.......#', '#.......#', '#.......#', '#.......#', '#########'],
+      ], dat: [
+        { '@': 1, 'X': 1, 'o': 5, 's': 2, '#': 7 },
+        { '@': 1, 'X': 1, 'o': 4, 's': 2, '#': 9 },
+        { '@': 1, 'X': 1, 'o': 5, 's': 3, '#': 6 },
+      ], min: 14, max: 34 },
+    ],
+    // Ở game này kẻ chơi tham là thước tốt — đo bộ màn cũ ra nó thắng 100% ở 6
+    // màn và trên 80% ở 9 màn, tức phần lớn màn chỉ là đi nhặt đồ theo thứ tự
+    // gần nhất, cơ chế bóng ma không được dùng tới. Chặn thẳng chỗ đó.
+    doKho: (man, hoc) => {
+      const d = doKhoPhim(man, hoc);
+      return {
+        ...d, chet: hoc.chet,
+        diem: d.thenChot + (1 - d.tham) + hoc.duong.length / 30,
+        dat: d.thenChot >= 1 || d.tham <= .25,
+      };
+    },
     // phải đổi khung hình ít nhất 2 lần, tức thật sự dùng trục thời gian
     dac: (c) => c.filter((t, i) => i && t.y !== c[i - 1].y).length >= 2,
+    // Vết nối phải được DÙNG trong lời giải ngắn nhất, không thì là đồ trang trí.
+    canVatPhu: (o, chuoi) => !o.join('').includes('s') || chuoi.some((t) => t.vuaCat),
   },
   {
     khoa: 'xoay', game: xoay,
@@ -292,9 +345,9 @@ for (const v of VIEC) {
     const chon = doTheoBac(v);
     ra[v.khoa] = { dayDs: v.dayDs, chon };
     console.log(`  then chốt:  ${chon.map((c) => c.thenChot).join(' ')}`);
+    console.log(`  tham thắng: ${chon.map((c) => Math.round(c.tham * 100)).join(' ')}`);
     if (chon.some((c) => c.chet !== undefined))
       console.log(`  chết %:     ${chon.map((c) => Math.round((c.chet ?? 0) * 100)).join(' ')}`);
-    else console.log(`  tham thắng: ${chon.map((c) => Math.round(c.tham * 100)).join(' ')}`);
     console.log(`  nước:       ${chon.map((c) => c.nuoc).join(' ')}`);
     continue;
   }
@@ -357,11 +410,13 @@ const than = Object.entries(ra).map(([khoa, m]) => {
   } else {
     for (const d of m.dayDs ?? [m.day]) dong.push(`    { o: ${JSON.stringify(d)} },   // màn dạy luật, vẽ tay`);
     for (const c of m.chon) {
-      const ghi = c.thenChot === undefined
-        ? `${c.nuoc} nước · ${c.bay} bẫy`
-        : c.chet !== undefined
-          ? `${c.nuoc} nước · ${c.thenChot} then chốt · chết ${Math.round(c.chet * 100)}%`
-          : `${c.nuoc} nước · ${c.thenChot} then chốt · tham thắng ${Math.round(c.tham * 100)}%`;
+      const phan = [`${c.nuoc} nước`];
+      if (c.thenChot === undefined) phan.push(`${c.bay} bẫy`);
+      else {
+        phan.push(`${c.thenChot} then chốt`, `tham thắng ${Math.round(c.tham * 100)}%`);
+        if (c.chet !== undefined) phan.push(`chết ${Math.round(c.chet * 100)}%`);
+      }
+      const ghi = phan.join(' · ');
       dong.push(`    { o: ${JSON.stringify(c.o)} },   // ${ghi}`);
     }
   }

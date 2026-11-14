@@ -6,7 +6,7 @@ riêng để **nhìn là hiểu luật, không cần đọc hướng dẫn**.
 | # | Game | Luật | Đã có ai làm |
 |---|---|---|---|
 | 01 | Hố Sụt | Bạn là cái hố. Chỉ nuốt được thứ không to hơn mình; nuốt đủ thì hố rộng ra | Donut County, Hole.io |
-| 02 | Cuộn Phim | Mỗi hàng là một khoảnh khắc. Ngang là không gian, dọc là thời gian | chưa thấy ai làm |
+| 02 | Cuộn Phim | Mỗi hàng là một khoảnh khắc. Ngang là không gian, dọc là thời gian; rời một khung là để lại bản thân cũ chắn chỗ | chưa thấy ai làm |
 | 03 | Thùng Hàng | Nghiêng cả thùng 90°, mọi thứ rơi theo chiều "dưới" mới | Turnabout (PS1, 2000) |
 | 04 | Tia Sét | Một phím điều khiển mọi tia; ngạnh chữ Y chẻ tia ra, cọc thu lôi nuốt tia đi | chưa thấy ai làm |
 

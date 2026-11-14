@@ -9,11 +9,12 @@
 // Mỗi game có một "cách chơi hiển nhiên" riêng, nên mỗi game cần một hàm chọn
 // nước tham riêng; phần đo thì dùng chung (xem doKhoTham ở cuối tệp).
 //
-// Chạy: node scripts/nguoi-tham.mjs [lo|tachDoi]   (in bảng cho bộ màn hiện tại)
+// Chạy: node scripts/nguoi-tham.mjs [lo|tachDoi|thoiGian]   (in bảng cho bộ màn hiện tại)
 import { docMan, khoa, TEN_HUONG } from '../nen.js';
 import { docDoHoc } from './giai.mjs';
 import lo from '../game/lo.js';
 import tachDoi from '../game/tach-doi.js';
+import thoiGian from '../game/thoi-gian.js';
 
 let hat = 7;
 const rnd = () => ((hat = (hat * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
@@ -108,6 +109,35 @@ function nuocThamTia(man, tt) {
   return ds.filter((kq) => diem(kq) === nhat);
 }
 
+// ── CUỘN PHIM ───────────────────────────────────────────────────────────────
+// Cách chơi hiển nhiên: ĐI NHẶT MÓN GẦN NHẤT, nhặt đủ rồi thì đi ra cửa. Kẻ
+// chơi kiểu này không bao giờ nghĩ trước rằng đổi khung hình là để lại một
+// bản thân cũ bịt mất lối, cũng không để dành vết nối — nên màn nào nó thắng
+// được là màn đó chỉ còn là đi dạo nhặt đồ.
+function diemPhim(man, tt) {
+  const conLai = man.lay('o').filter(([x, y]) => !tt.lay.has(`${x},${y}`));
+  if (!conLai.length) {
+    const [cx, cy] = man.lay('X')[0];
+    return 1e6 - (Math.abs(tt.x - cx) + Math.abs(tt.y - cy));
+  }
+  let gan = 1e9;
+  for (const [x, y] of conLai) gan = Math.min(gan, Math.abs(tt.x - x) + Math.abs(tt.y - y));
+  return tt.lay.size * 1000 - gan;
+}
+
+function nuocThamPhim(man, tt) {
+  const ds = [];
+  for (const h of TEN_HUONG) {
+    const kq = thoiGian.buoc(man, tt, h);
+    if (!kq || kq.tt === tt) continue;
+    ds.push(kq);
+  }
+  if (!ds.length) return [];
+  const diem = (kq) => (kq.thang ? Infinity : diemPhim(man, kq.tt));
+  const nhat = Math.max(...ds.map(diem));
+  return ds.filter((kq) => diem(kq) === nhat);
+}
+
 // ── phần đo dùng chung ──────────────────────────────────────────────────────
 // thamThang - tỉ lệ kẻ tham thắng cả màn. Cao = màn chỉ là dọn dẹp.
 // thenChot  - số chỗ trên lời giải mà MỌI nước "hiển nhiên" đều làm mất đường
@@ -144,10 +174,17 @@ export const doKhoTia = (man, hoc) => doKhoTham(
   (tt, i) => i === 0 || tt.noAt?.length || tt.hut?.length,
 );
 
+// Chỗ không lùi lại được ở Cuộn Phim: mỗi lần đổi khung hình (để lại một bản
+// thân cũ vĩnh viễn) và mỗi lần cắt phim (vết nối cháy luôn).
+export const doKhoPhim = (man, hoc) => doKhoTham(
+  thoiGian, man, hoc, nuocThamPhim,
+  (tt, i) => i === 0 || tt.doiKhung || tt.vuaCat,
+);
+
 if (process.argv[1]?.replaceAll('\\', '/').endsWith('scripts/nguoi-tham.mjs')) {
   const chon = process.argv[2] ?? 'lo';
-  const game = chon === 'tachDoi' ? tachDoi : lo;
-  const do_ = chon === 'tachDoi' ? doKhoTia : doKho;
+  const game = { lo, tachDoi, thoiGian }[chon] ?? lo;
+  const do_ = { lo: doKho, tachDoi: doKhoTia, thoiGian: doKhoPhim }[chon] ?? doKho;
   console.log(`${game.ten}\nmàn  nước  then-chốt  tham-thắng`);
   game.MAN.forEach((m, i) => {
     const man = docMan(m.o);

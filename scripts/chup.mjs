@@ -1,6 +1,9 @@
 // Chụp vài màn của một game để soi phần nhìn. Cần server ở :4192.
 // Chạy: node scripts/chup.mjs tach-doi 1,4,12 [thư-mục-ra]
 //
+// PHIM=ArrowUp,ArrowRight,... để đi vài nước trước khi chụp — cần thiết khi
+// muốn soi thứ chỉ hiện sau khi chơi, như bản thân cũ ở Cuộn Phim.
+//
 // Tìm trình duyệt theo thứ tự: biến môi trường CHROME → bản playwright tự tải →
 // chrome/chromium của máy. Nhờ vậy chạy được trên cả Windows, macOS và Linux;
 // bản trước ghi cứng đường dẫn C:/Users nên rời máy đó là hỏng.
@@ -42,6 +45,11 @@ let dang = 1;
 for (const n of ds.split(',').map(Number)) {
   while (dang < n) { await p.click(sau); dang++; }
   await p.waitForTimeout(1100);
+  if (process.env.PHIM) {
+    await p.locator(`[data-san="${game}"] canvas`).click();
+    for (const k of process.env.PHIM.split(',')) { await p.keyboard.press(k); await p.waitForTimeout(240); }
+    await p.waitForTimeout(600);
+  }
   const f = `${ra}/${game}-${n}.png`;
   await p.locator(`[data-san="${game}"]`).screenshot({ path: f });
   console.log(f);
