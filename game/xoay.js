@@ -28,7 +28,18 @@ function batDau(man) {
   const [nx, ny] = man.lay('@')[0];
   vat.push({ id: id++, loai: 'nguoi', x: nx, y: ny });
   const tt = { n, tuong: new Set(man.tuong), vat, nap: man.lay('X')[0].slice(), luc: 0, quay: 0, huong: 0 };
-  onDinh(tt);
+  // Mở màn thì chỉ cho rơi xuống cho ổn định, KHÔNG xét vỡ. Trước đây ở đây
+  // gọi onDinh, nên kiện dễ vỡ nào đặt cao hơn chỗ đáp 3 ô là vỡ ngay trước
+  // khi người chơi bấm phím đầu tiên: đo bộ màn cũ ra 17 trên 57 kiện bay mất
+  // như vậy, ở 12 trên 20 màn, một màn mất sạch cả ba. Tệp màn ghi những kiện
+  // mà người chơi không bao giờ nhìn thấy, và bàn mở ra đã khác bản thiết kế.
+  roi(tt);
+  // Hòm nằm sẵn trên kiện bắt đinh thì coi như đinh đã bật từ trước khi mở
+  // màn — không thì nó bật ở nước đi đầu tiên dù người chơi chưa làm gì.
+  const duoiHom = new Set(tt.vat.filter((v) => v.loai === 'hom').map((v) => `${v.x},${v.y + 1}`));
+  for (const v of tt.vat) if (v.loai === 'dinh' && duoiHom.has(`${v.x},${v.y}`)) v.loai = 'kien';
+  roi(tt);
+  tt.vo = null;
   return tt;
 }
 
@@ -117,7 +128,15 @@ function onDinh(moi) {
     const duoiHom = new Set(moi.vat.filter((v) => v.loai === 'hom').map((v) => `${v.x},${v.y + 1}`));
     const vo = moi.vat.filter((v) => v.loai === 'devo'
       && (v.y - truoc.get(v.id) >= 3 || duoiHom.has(`${v.x},${v.y}`)));
-    if (!vo.length) break;
+    // Hòm đè lên kiện bắt đinh thì BẬT ĐINH: nó thành kiện thường và rơi.
+    // Trước đó kiện bắt đinh hành xử y hệt tường — cùng quay theo thùng, cùng
+    // không rơi, cùng chắn đường — tức là nhìn khác nhau mà luật giống hệt.
+    // Giờ nó là cái bệ mình CHỦ ĐỘNG tháo được, và cái hòm có thêm một việc
+    // ngoài việc đè vỡ.
+    let bat = false;
+    for (const v of moi.vat)
+      if (v.loai === 'dinh' && duoiHom.has(`${v.x},${v.y}`)) { v.loai = 'kien'; bat = true; }
+    if (!vo.length && !bat) break;
     voTatCa.push(...vo.map((v) => ({ x: v.x, y: v.y })));
     moi.vat = moi.vat.filter((v) => !vo.includes(v));
   }
@@ -128,7 +147,14 @@ function onDinh(moi) {
 function xongNuoc(moi) {
   onDinh(moi);
   const ng = moi.vat.find((v) => v.loai === 'nguoi');
-  return { tt: moi, thang: ng.x === moi.nap[0] && ng.y === moi.nap[1] };
+  if (ng.x === moi.nap[0] && ng.y === moi.nap[1]) return { tt: moi, thang: true };
+  // Kiện vỡ là mất hẳn một cái bậc thang, mà người chơi thường chỉ nhận ra khi
+  // đã không trèo lên nổi nữa — lúc đó lùi lại thì xa quá rồi. Nói ngay.
+  if (moi.vo?.length) {
+    const con = moi.vat.filter((v) => v.loai === 'devo').length;
+    return { tt: moi, bao: `Vỡ mất ${moi.vo.length} kiện dễ vỡ — còn ${con}.`, loai: 'ket' };
+  }
+  return { tt: moi };
 }
 
 function veThung(ctx, g, n, huong, van) {
@@ -227,15 +253,29 @@ function ve(ctx, man, tt, g, phu) {
     const ep = tt.quay ? Math.sin(chamDat * Math.PI) * .32 : 0;
 
     if (v.loai === 'devo') {
-      const day = g.o * .1;
-      bongMem(ctx, px - SANG.x * day, py + g.o * .34 + day * .5, g.o * .36, .4);
-      khoi(ctx, px - g.o * .3, py - g.o * .3 + g.o * ep * .3, g.o * .6, g.o * .6 * (1 - ep * .3),
-        day, '#d8c9a8', '#9b8a68', g.o * .06);
-      ctx.strokeStyle = 'rgba(90,70,40,.55)';
-      ctx.lineWidth = Math.max(1, g.o * .035);
+      // KIỆN DỄ VỠ. Khác kiện thường ở ba chỗ cùng lúc — nhạt màu, mỏng thành,
+      // và có vết rạn chạy suốt. Một chỗ thôi thì người chơi đọc nhầm nó thành
+      // "kiện hàng loại khác", rồi thả cho rơi và mất mất cái bậc thang đang cần.
+      const day = g.o * .07;
+      bongMem(ctx, px - SANG.x * day, py + g.o * .34 + day * .5, g.o * .34, .36);
+      khoi(ctx, px - g.o * .28, py - g.o * .28 + g.o * ep * .3, g.o * .56, g.o * .56 * (1 - ep * .3),
+        day, '#e4d8bd', '#a4906c', g.o * .05);
+      ctx.save();
       ctx.beginPath();
-      ctx.moveTo(px - g.o * .16, py - g.o * .28); ctx.lineTo(px - g.o * .02, py - g.o * .04);
-      ctx.lineTo(px - g.o * .13, py + g.o * .1); ctx.lineTo(px + g.o * .04, py + g.o * .28);
+      ctx.rect(px - g.o * .28, py - g.o * .28 + g.o * ep * .3, g.o * .56, g.o * .56 * (1 - ep * .3));
+      ctx.clip();
+      ctx.strokeStyle = 'rgba(86,64,34,.6)';
+      ctx.lineWidth = Math.max(1, g.o * .032);
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+      ctx.moveTo(px - g.o * .3, py - g.o * .18); ctx.lineTo(px - g.o * .06, py - g.o * .02);
+      ctx.lineTo(px - g.o * .15, py + g.o * .12); ctx.lineTo(px + g.o * .06, py + g.o * .3);
+      ctx.moveTo(px - g.o * .06, py - g.o * .02); ctx.lineTo(px + g.o * .16, py - g.o * .12);
+      ctx.stroke();
+      ctx.restore();
+      ctx.strokeStyle = 'rgba(120,96,56,.5)';
+      ctx.lineWidth = Math.max(1, g.o * .022);
+      oTron(ctx, px - g.o * .28, py - g.o * .28 + g.o * ep * .3, g.o * .56, g.o * .56 * (1 - ep * .3), g.o * .05);
       ctx.stroke();
     } else if (v.loai === 'dinh') {
       const t = anh(TRANH_DINH);
@@ -268,15 +308,42 @@ function ve(ctx, man, tt, g, phu) {
     } else {
       // nhìn về phía nắp hầm — thằng bé biết mình cần tới đâu
       const nhin = [tt.nap[0] - v.x, tt.nap[1] - v.y];
+      const treNap = v.x === tt.nap[0] && v.y === tt.nap[1];
       bongMem(ctx, px, py + g.o * .3, g.o * .36 * (1 + ep), .48);
       nhanVat(ctx, px, py, g.o * .26, {
         nhin: nhin[0] || nhin[1] ? nhin : [0, 1], ep,
         than: NGUOI, toi: 'rgba(25,20,16,.82)', nay: phu.nay, mam: v.id,
+        // Cả cái thùng đang lộn nhào thì mặt nó phải nói lên điều đó.
+        cam: treNap ? 'vui' : tt.quay && t < 1 ? 'gang' : 'thuong',
       });
     }
   }
   ctx.restore();
   toiGoc(ctx, phu.W, phu.H, .5);
+
+  // Kiện dễ vỡ là tài nguyên: vỡ rồi là mất hẳn một cái bậc thang, và người
+  // chơi thường chỉ nhận ra khi đã không trèo lên nổi nữa. Đếm nó ra mặt.
+  // Vẽ SAU ctx.restore() nên bảng không quay theo thùng — nó là giao diện,
+  // không phải đồ trong thùng.
+  const tongVo = man.lay('v').length;
+  if (tongVo) veHud(ctx, phu.W, phu.H, tt.vat.filter((v) => v.loai === 'devo').length, tongVo);
+}
+
+// Đặt ở góc DƯỚI trái: thanh đầu trang của site dính theo cuộn và che mất
+// góc trên của canvas, nên bảng để trên là có lúc biến mất.
+function veHud(ctx, W, H, con, tong) {
+  const h = Math.min(Math.max(19, W * .028), 30), cx = 8, cy = H - 8 - h / 2;
+  const chu = `DỄ VỠ ${con}/${tong}`;
+  ctx.font = `700 ${Math.round(h * .54)}px system-ui, sans-serif`;
+  const w = ctx.measureText(chu).width + h * 1.1;
+  ctx.fillStyle = 'rgba(16,11,7,.84)';
+  oTron(ctx, cx, cy - h / 2, w, h, h / 2); ctx.fill();
+  ctx.strokeStyle = con === tong ? 'rgba(216,201,168,.45)' : 'rgba(224,138,99,.6)';
+  ctx.lineWidth = 1.5;
+  oTron(ctx, cx, cy - h / 2, w, h, h / 2); ctx.stroke();
+  ctx.fillStyle = con === tong ? '#d8c9a8' : '#e08a63';
+  ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  ctx.fillText(chu, cx + h * .55, cy + 1);
 }
 
 // vân gỗ: sọc dọc + thớ, sinh một lần rồi giữ lại
@@ -296,7 +363,7 @@ function veVanGo(c, W, H) {
 
 export default {
   ten: 'Thùng Hàng',
-  goi: '← → đi bộ; chạm kiện hàng thì trèo lên. Đẩy vào thành thùng là cả thùng nghiêng, mọi thứ rơi theo chiều "dưới" mới. Kiện nhạt màu rơi quá 3 ô là vỡ, hòm nặng đè lên là vỡ ngay. Kiện bắt đinh thì quay theo thùng mà không rơi. Đưa người xuống nắp hầm.',
+  goi: '← → đi bộ; chạm kiện hàng thì trèo lên. Đẩy vào thành thùng là cả thùng nghiêng, mọi thứ rơi theo chiều "dưới" mới. Kiện nhạt màu rơi quá 3 ô là vỡ, hòm nặng đè lên là vỡ ngay. Kiện bắt đinh quay theo thùng mà không rơi — tới khi bị hòm đè thì bật đinh, thành kiện thường và rơi. Đưa người xuống nắp hầm.',
   tyLe: .92,
   mau: { chinh: DAI, nen: NEN, phu: KIEN },
   batDau, buoc, ve,
