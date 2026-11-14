@@ -98,10 +98,13 @@ function veNen(ctx, W, H, man, g) {
 
   for (let y = 0; y < man.cao; y++) {
     const py = g.y0 + y * g.o, he = g.o * .07;
-    // hai lỗ răng mỗi khung, mỗi bên — đủ để nói "đây là phim" mà không rối
+    // Hai lỗ răng mỗi khung, mỗi bên — đủ để nói "đây là phim" mà không rối.
+    // Đẩy hai lỗ ra sát hai đầu khung để chừa khoảng GIỮA cho số khung hình:
+    // trước đây lỗ nằm giữa nên số bị đẩy xuống đáy ô, đọc ra thành số của
+    // hàng bên dưới.
     ctx.fillStyle = '#04060a';
     for (const lx of [g.x0 - le * .72, g.x0 + w + le * .22])
-      for (const k of [.24, .62]) {
+      for (const k of [.10, .70]) {
         oTron(ctx, lx, py + g.o * k, le * .5, g.o * .16, le * .14);
         ctx.fill();
         ctx.strokeStyle = 'rgba(170,195,225,.16)';
@@ -119,12 +122,12 @@ function veNen(ctx, W, H, man, g) {
       ctx.stroke();
     }
 
-    // Số khung hình, in trên chính dải mép phim dưới hai lỗ răng — đây là thứ
+    // Số khung hình, in giữa dải mép phim ngay giữa hai lỗ răng — đây là thứ
     // nói "hàng = khoảnh khắc". Để ngoài mép thì tràn khỏi canvas và bị cắt.
     ctx.fillStyle = '#7d8ea6';
     ctx.font = `600 ${Math.round(g.o * .17)}px ui-sans-serif, system-ui`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(`${y + 1}`, g.x0 - le * .47, py + g.o * .88);
+    ctx.fillText(`${y + 1}`, g.x0 - le * .47, py + g.o * .48);
 
     // Tường = mảng tối trong khung hình. Tối hơn nhũ tương đủ để đọc ra ngay,
     // nhưng KHÔNG đen đặc: đen đặc thì mắt đọc nó thành vật thể chính và cả
@@ -312,7 +315,10 @@ function ve(ctx, man, tt, g, phu) {
 function veHud(ctx, g, daLay, tong, soMa) {
   // Đặt trong hàng tường trên cùng — mọi màn đều có một hàng tường ở đó, nên
   // bảng không bao giờ che mất ô chơi được. Phía trên dải phim không đủ chỗ.
-  const h = Math.max(19, g.o * .34), cx = g.x0 + g.o * .12, cy = g.y0 + g.o * .5;
+  // Chặn trần chiều cao: bàn nhỏ thì ô to, mà bảng tính theo ô nên nó phình ra
+  // che gần hai ô của hàng đầu. Bảng là giao diện, cỡ của nó không nên đổi
+  // theo cỡ bàn.
+  const h = Math.min(Math.max(19, g.o * .34), 30), cx = g.x0 + g.o * .12, cy = g.y0 + g.o * .5;
   const chu = `ĐÃ LẤY ${daLay}/${tong}${soMa ? ` · ${soMa} BÓNG` : ''}`;
   ctx.font = `700 ${Math.round(h * .54)}px system-ui, sans-serif`;
   const w = ctx.measureText(chu).width + h * 1.1;

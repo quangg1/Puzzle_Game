@@ -332,7 +332,7 @@ function ve(ctx, man, tt, g, phu) {
 // Đặt ở góc DƯỚI trái: thanh đầu trang của site dính theo cuộn và che mất
 // góc trên của canvas, nên bảng để trên là có lúc biến mất.
 function veHud(ctx, W, H, con, tong) {
-  const h = Math.max(19, W * .028), cx = 8, cy = H - 8 - h / 2;
+  const h = Math.min(Math.max(19, W * .028), 30), cx = 8, cy = H - 8 - h / 2;
   const chu = `DỄ VỠ ${con}/${tong}`;
   ctx.font = `700 ${Math.round(h * .54)}px system-ui, sans-serif`;
   const w = ctx.measureText(chu).width + h * 1.1;

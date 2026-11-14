@@ -415,7 +415,8 @@ function ve(ctx, man, tt, g, phu) {
 // này không hiện ở đâu cả. Người chơi phủ kín chấu rồi vẫn không thắng và
 // không hiểu vì sao. Đây là chỗ sửa đáng giá nhất của cả game.
 function veHud(ctx, g, soTia, soChau) {
-  const h = Math.max(20, g.o * .4), cx = g.x0 + g.o * .2, cy = g.y0 + g.o * .46;
+  // Chặn trần: bàn nhỏ thì ô to, bảng tính theo ô sẽ phình ra che mất ô chơi.
+  const h = Math.min(Math.max(20, g.o * .4), 32), cx = g.x0 + g.o * .2, cy = g.y0 + g.o * .46;
   ctx.font = `700 ${Math.round(h * .54)}px system-ui, sans-serif`;
   const chu = `TIA ${soTia} / CHẤU ${soChau}`;
   const w = ctx.measureText(chu).width + h * 1.1;

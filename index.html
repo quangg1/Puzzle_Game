@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Bốn Cơ Chế — sổ đăng bạ bốn luật chơi</title>
+<!-- Biểu tượng vẽ thẳng trong thẻ, không thêm tệp: bốn ô cho bốn cơ chế.
+     Thiếu nó thì trình duyệt nào cũng xin /favicon.ico rồi ăn 404. -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230b0b0d'/%3E%3Crect x='6' y='6' width='8' height='8' rx='2' fill='%23d9bb8a'/%3E%3Crect x='18' y='6' width='8' height='8' rx='2' fill='%23f4c95d'/%3E%3Crect x='6' y='18' width='8' height='8' rx='2' fill='%23b9873f'/%3E%3Crect x='18' y='18' width='8' height='8' rx='2' fill='%236ee7ff'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
@@ -191,6 +194,11 @@
     .muc, .muc:nth-child(even) { grid-template-columns: 2.6rem 1fr; }
     .muc .tam, .muc:nth-child(even) .tam { grid-column: 1 / -1; }
     .muc:nth-child(even) .noi { grid-column: 2; }
+    /* Hai mươi vạch × 17px = 340px và .vach không co được, nên trên máy hẹp nó
+       đẩy chữ "MÀN n/20" tràn khỏi màn hình. Cho cả cụm xuống hàng riêng và
+       cho vạch xuống dòng được. */
+    .san .nhip { margin-left: 0; width: 100%; gap: .7rem; }
+    .vach { flex-wrap: wrap; min-width: 0; flex: 1; }
   }
   @media (prefers-reduced-motion: reduce) {
     html { scroll-behavior: auto; }
